@@ -8,8 +8,10 @@
 import Fastify from "fastify";
 import websocket from "@fastify/websocket";
 import rateLimit from "@fastify/rate-limit";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import fastifyStatic from "@fastify/static";
+import { readFileSync, existsSync } from "node:fs";
+import { resolve, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { validateConfig } from "./config.js";
 import { getPool, closePool } from "./db/pool.js";
 import { PairingStore } from "./db/pairing-store.js";
@@ -34,18 +36,14 @@ import type { WsMessage } from "./ws/router.js";
 async function main() {
   const config = validateConfig();
 
-  // TLS is mandatory — WSS only, no ws:// code path exists (per §10)
-  const tls = {
-    cert: readFileSync(resolve(config.tlsCertPath)),
-    key: readFileSync(resolve(config.tlsKeyPath)),
-  };
-
-  const server = Fastify({
-    https: tls,
+  // TLS: required locally (mkcert), not needed on Fly.io (they handle it at the edge)
+  const useTls = !!(config.tlsCertPath && config.tlsKeyPath);
+  
+  const serverOptions: Record<string, unknown> = {
     logger: {
       level: process.env["LOG_LEVEL"] ?? "info",
       serializers: {
-        req(request) {
+        req(request: { method: string; url: string; hostname: string; ip: string }) {
           return {
             method: request.method,
             url: request.url,
@@ -56,7 +54,16 @@ async function main() {
       },
     },
     bodyLimit: 1024 * 16,
-  });
+  };
+
+  if (useTls) {
+    serverOptions["https"] = {
+      cert: readFileSync(resolve(config.tlsCertPath!)),
+      key: readFileSync(resolve(config.tlsKeyPath!)),
+    };
+  }
+
+  const server = Fastify(serverOptions as Parameters<typeof Fastify>[0]);
 
   // Plugins
   await server.register(rateLimit, { global: true, max: 100, timeWindow: "1 minute" });
@@ -73,11 +80,28 @@ async function main() {
   };
 
   // HTTP Routes
-  registerPairInitRoute(server, pairingStore);
-  registerRevocationRoute(server, { pool, socketRegistry, log });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Fastify type overloads differ for HTTP/HTTPS
+  const app = server as any;
+  registerPairInitRoute(app, pairingStore);
+  registerRevocationRoute(app, { pool, socketRegistry, log });
 
   // Health check
   server.get("/health", async () => ({ status: "ok" }));
+
+  // Serve phone app static files (built Vite output)
+  const __dirname = fileURLToPath(new URL(".", import.meta.url));
+  const phoneAppDir = resolve(__dirname, "../../phone-app/dist");
+  if (existsSync(phoneAppDir)) {
+    await server.register(fastifyStatic, {
+      root: phoneAppDir,
+      prefix: "/",
+      wildcard: false,
+    });
+    // SPA fallback — serve index.html for any non-API/non-WS route
+    server.setNotFoundHandler(async (_request, reply) => {
+      return reply.sendFile("index.html", phoneAppDir);
+    });
+  }
 
   // Initialize idle timeout sweeper
   const disconnectDeps = { socketRegistry, pool, log };
@@ -166,7 +190,7 @@ async function main() {
 
   // Register WebSocket route
   registerWsHandler(
-    server,
+    app,
     { allowedOrigins: config.allowedOrigins, pairingStore } as WsHandlerContext,
     socketRegistry,
     (socket, raw, ip) => { void messageRouter(socket, raw, ip); },

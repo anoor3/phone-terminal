@@ -12,8 +12,8 @@
 export interface Config {
   host: string;
   port: number;
-  tlsCertPath: string;
-  tlsKeyPath: string;
+  tlsCertPath: string | null;
+  tlsKeyPath: string | null;
   allowedOrigins: string[];
   databaseUrl: string;
 }
@@ -21,13 +21,9 @@ export interface Config {
 export function validateConfig(): Config {
   const missing: string[] = [];
 
-  const tlsCertPath = process.env["TLS_CERT_PATH"];
-  const tlsKeyPath = process.env["TLS_KEY_PATH"];
   const allowedOriginsRaw = process.env["ALLOWED_ORIGINS"];
   const databaseUrl = process.env["DATABASE_URL"];
 
-  if (!tlsCertPath) missing.push("TLS_CERT_PATH");
-  if (!tlsKeyPath) missing.push("TLS_KEY_PATH");
   if (!allowedOriginsRaw) missing.push("ALLOWED_ORIGINS");
   if (!databaseUrl) missing.push("DATABASE_URL");
 
@@ -48,11 +44,16 @@ export function validateConfig(): Config {
     throw new Error("PORT must be a valid port number (1-65535).");
   }
 
+  // TLS is optional in production (Fly.io handles TLS at the edge)
+  // Required for local development (mkcert)
+  const tlsCertPath = process.env["TLS_CERT_PATH"] ?? null;
+  const tlsKeyPath = process.env["TLS_KEY_PATH"] ?? null;
+
   return {
     host: process.env["HOST"] ?? "0.0.0.0",
     port,
-    tlsCertPath: tlsCertPath!,
-    tlsKeyPath: tlsKeyPath!,
+    tlsCertPath,
+    tlsKeyPath,
     allowedOrigins,
     databaseUrl: databaseUrl!,
   };
