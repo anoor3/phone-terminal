@@ -107,6 +107,9 @@ async function main() {
   const disconnectDeps = { socketRegistry, pool, log };
   initIdleTimeout(disconnectDeps);
 
+  // Store phone public keys during pairing (keyed by pairingId)
+  const phonePublicKeys = new Map<string, Record<string, unknown>>();
+
   // WebSocket message router — connects ALL handlers
   const messageRouter = createMessageRouter({
     pairingStore,
@@ -147,14 +150,15 @@ async function main() {
           socketRegistry,
           log,
           onCodeValid: async (validPairingId: string) => {
-            // Pairing complete! Generate session.
+            const publicKeyJwk = phonePublicKeys.get(validPairingId) ?? {};
             await completePairing(
               { pairingStore, socketRegistry, pool, log },
               validPairingId,
-              {}, // publicKeyJwk — phone sends it during claim (TODO: wire this)
+              publicKeyJwk,
               "Phone Device",
               "cli-instance"
             );
+            phonePublicKeys.delete(validPairingId);
           },
         },
         socket, pairingId, code, ip
@@ -188,6 +192,11 @@ async function main() {
 
     onDisconnect: async (socket: WebSocket, message: WsMessage, ip: string) => {
       await handleDisconnectMessage(disconnectDeps, socket, message, ip);
+    },
+
+    onPublicKey: (pairingId: string, publicKeyJwk: Record<string, unknown>) => {
+      phonePublicKeys.set(pairingId, publicKeyJwk);
+      log("info", { pairingId }, "Received phone public key");
     },
   });
 

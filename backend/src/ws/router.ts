@@ -77,6 +77,7 @@ export interface MessageRouterDeps {
   onCodeSubmit: (socket: WebSocket, pairingId: string, code: string, ip: string) => Promise<void>;
   onControlMessage: (socket: WebSocket, message: WsMessage, ip: string) => Promise<void>;
   onDisconnect: (socket: WebSocket, message: WsMessage, ip: string) => Promise<void>;
+  onPublicKey?: (pairingId: string, publicKeyJwk: Record<string, unknown>) => void;
 }
 
 /**
@@ -129,6 +130,18 @@ export function createMessageRouter(deps: MessageRouterDeps) {
       case "output":
       case "status": {
         await deps.onControlMessage(socket, message, ip);
+        break;
+      }
+
+      case "public_key": {
+        // Phone sends its public key after keypair generation
+        if (deps.onPublicKey) {
+          const pairingId = message["pairingId"];
+          const publicKeyJwk = message["publicKeyJwk"];
+          if (typeof pairingId === "string" && publicKeyJwk && typeof publicKeyJwk === "object") {
+            deps.onPublicKey(pairingId, publicKeyJwk as Record<string, unknown>);
+          }
+        }
         break;
       }
 

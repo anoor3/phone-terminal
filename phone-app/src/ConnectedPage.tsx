@@ -61,8 +61,8 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
 
       switch (msg.type) {
         case 'output':
-          if (msg.data && termRef.current) {
-            termRef.current.write(msg.data);
+          if ((msg as Record<string, unknown>)['chunk'] && termRef.current) {
+            termRef.current.write((msg as Record<string, unknown>)['chunk'] as string);
           }
           break;
         case 'disconnect':
@@ -86,15 +86,16 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     const seq = ++seqRef.current;
     const ts = Date.now();
     const type = 'input';
-    const signature = await sign(keypair, sessionId, seq, ts, type, command);
+    const payload = command + '\n'; // Add newline so command executes
+    const sig = await sign(keypair, sessionId, seq, ts, type, payload);
 
     ws.send(JSON.stringify({
       type,
       sessionId,
       seq,
       ts,
-      payload: command,
-      signature,
+      payload,
+      sig,
     }));
   };
 
@@ -112,7 +113,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     const seq = ++seqRef.current;
     const ts = Date.now();
     const type = 'disconnect';
-    const signature = await sign(keypair, sessionId, seq, ts, type, '');
+    const sig = await sign(keypair, sessionId, seq, ts, type, '');
 
     ws.send(JSON.stringify({
       type,
@@ -120,7 +121,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
       seq,
       ts,
       payload: '',
-      signature,
+      sig,
     }));
 
     onDisconnected('Manual disconnect');

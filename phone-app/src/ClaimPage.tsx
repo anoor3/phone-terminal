@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { generateKeypair } from './crypto';
+import { generateKeypair, exportPublicKeyJWK } from './crypto';
 
 // WSS only — no ws:// code path exists (per §10)
 const WS_URL = import.meta.env.VITE_WS_URL ?? `wss://${window.location.host}/ws`;
@@ -37,8 +37,12 @@ export function ClaimPage({ onClaimed, onPaired }: ClaimPageProps) {
       const type = msg['type'] as string;
 
       if (type === 'phone_claim_ack') {
-        setStatus('Pairing with laptop...');
-        await generateKeypair();
+        setStatus('Generating keys...');
+        const kp = await generateKeypair();
+        // Send public key to backend for signature verification
+        const pubKey = await exportPublicKeyJWK(kp);
+        ws.send(JSON.stringify({ type: 'public_key', pairingId, publicKeyJwk: pubKey }));
+        setStatus('Waiting for verification code...');
         claimed = true;
       } else if (type === 'code_challenge') {
         code = msg['code'] as string ?? '';

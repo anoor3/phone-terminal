@@ -123,14 +123,31 @@ program
         });
       });
 
-      // Pairing complete!
-      console.log(`\n  ✓ PAIRED! Session: ${pairingResult.sessionId.slice(0, 8)}...`);
-      console.log(`    Device: ${pairingResult.deviceLabel}\n`);
-      console.log("  🎉 Phone is now connected to your terminal.\n");
+      // Pairing complete! Start the control phase.
+      const { initializeSession, teardownSession } = await import("./session.js");
+      const { startControlPhase } = await import("./pty-io.js");
+      const { renderConnectedBox, renderDisconnectedBox } = await import("./status-box.js");
 
-      // Keep process alive
-      ws.on("close", () => {
-        console.log("  Session ended.");
+      console.log("");
+      renderConnectedBox({ deviceLabel: pairingResult.deviceLabel, sessionId: pairingResult.sessionId });
+
+      // Initialize session: spawn pty, set up stdin interception
+      const state = initializeSession(ws, {
+        sessionId: pairingResult.sessionId,
+        deviceId: pairingResult.deviceId,
+        deviceLabel: pairingResult.deviceLabel,
+        publicKeyJwk: pairingResult.publicKeyJwk,
+      }, (reason: string) => {
+        // On disconnect callback
+        renderDisconnectedBox({ reason });
+        teardownSession(state, reason);
+        process.exit(0);
+      });
+
+      // Start control phase: verified input → pty, pty output → phone
+      startControlPhase(state, (reason: string) => {
+        renderDisconnectedBox({ reason });
+        teardownSession(state, reason);
         process.exit(0);
       });
 
