@@ -1,0 +1,108 @@
+# ============================================================
+# phone-terminal .gitignore
+# SECURITY FIRST: Never commit secrets, keys, certs, or env files
+# ============================================================
+
+# --- Secrets & Credentials (CRITICAL) ---
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.secret
+*.secrets
+credentials.json
+service-account*.json
+*.credentials
+.npmrc
+.yarnrc
+token
+tokens
+*.token
+
+# --- mkcert local dev certificates ---
+certs/
+*.crt
+*.key
+
+# --- SSH keys (should never be anywhere near this repo) ---
+id_rsa
+id_ed25519
+*.pub
+.ssh/
+
+# --- AWS / Cloud credentials ---
+.aws/
+.gcloud/
+.azure/
+
+# --- Node.js ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# --- Build outputs ---
+dist/
+build/
+out/
+*.js.map
+*.d.ts.map
+
+# --- TypeScript ---
+*.tsbuildinfo
+
+# --- OS files ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# --- Test / Coverage ---
+coverage/
+.nyc_output/
+*.lcov
+
+# --- Logs ---
+logs/
+*.log
+
+# --- Docker (local volumes, not config) ---
+docker-compose.override.yml
+.docker/
+
+# --- Database dumps (never commit real data) ---
+*.sql.gz
+*.dump
+*.bak
+data/
+
+# --- Temporary files ---
+tmp/
+temp/
+.tmp/
+.cache/

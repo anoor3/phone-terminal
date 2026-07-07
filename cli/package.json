@@ -1,0 +1,13 @@
+{
+  "name": "phone-terminal",
+  "version": "0.1.0",
+  "description": "Cryptographically secured phone-to-laptop remote terminal control CLI",
+  "bin": {
+    "phone-terminal": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "echo 'lint not yet configured'",
+    "test": "echo 'tests not yet configured'"
+  }
+}

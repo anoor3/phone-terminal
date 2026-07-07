@@ -1,0 +1,12 @@
+{
+  "name": "@phone-terminal/phone-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Phone web app for phone-terminal (ECDSA signing, xterm.js terminal view)",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "lint": "echo 'lint not yet configured'",
+    "test": "echo 'tests not yet configured'"
+  }
+}

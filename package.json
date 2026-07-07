@@ -1,0 +1,24 @@
+{
+  "name": "phone-terminal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cryptographically secured phone-to-laptop remote terminal control",
+  "workspaces": [
+    "cli",
+    "backend",
+    "phone-app"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test --workspaces"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anoor3/phone-terminal"
+  },
+  "license": "MIT"
+}

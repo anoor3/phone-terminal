@@ -1,0 +1,12 @@
+{
+  "name": "@phone-terminal/backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Relay backend for phone-terminal (stateless, verifying relay)",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/server.ts",
+    "lint": "echo 'lint not yet configured'",
+    "test": "echo 'tests not yet configured'"
+  }
+}
