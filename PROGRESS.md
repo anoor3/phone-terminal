@@ -78,9 +78,9 @@ VS Code extension, team/enterprise features.
 | 19 | Write verified input to pty, stream output back | ✅ Done | f9a3914 |
 | 20 | Status box UI (green/red, always visible) | ✅ Done | 24ac535 |
 | 21 | Dangerous command detection + laptop-side confirmation | ✅ Done | c2b5a8c |
-| 22 | disconnect/devices/revoke/status commands | ⬜ Pending | — |
-| 23 | Teardown handlers (SIGINT/SIGTERM/SIGHUP/exit) | ⬜ Pending | — |
-| 24 | Audit log command + hash-chain verification | ⬜ Pending | — |
+| 22 | disconnect/devices/revoke/status commands | ✅ Done | 6aff9ec |
+| 23 | Teardown handlers (SIGINT/SIGTERM/SIGHUP/exit) | ✅ Done | 17b1de3 |
+| 24 | Audit log command + hash-chain verification | ✅ Done | cd7b3e0 |
 
 ### Phone App
 
