@@ -4,6 +4,9 @@ import rateLimit from "@fastify/rate-limit";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { validateConfig, type Config } from "./config.js";
+import { getRedis, closeRedis } from "./redis/client.js";
+import { PairingStore } from "./redis/pairing-store.js";
+import { registerPairInitRoute } from "./http/pair-init.js";
 
 export async function buildServer(config: Config) {
   // TLS is mandatory — the server ONLY speaks HTTPS/WSS
@@ -42,6 +45,13 @@ export async function buildServer(config: Config) {
   // WebSocket support (WSS only since server is TLS)
   await server.register(websocket);
 
+  // Initialize Redis + PairingStore
+  const redis = getRedis(config.redisUrl);
+  const pairingStore = new PairingStore(redis);
+
+  // Register routes
+  registerPairInitRoute(server, pairingStore);
+
   // Health check — does not expose internal state or versions
   server.get("/health", async () => {
     return { status: "ok" };
@@ -68,6 +78,7 @@ async function main() {
   const shutdown = async (signal: string) => {
     server.log.info(`Received ${signal}, shutting down gracefully...`);
     await server.close();
+    await closeRedis();
     process.exit(0);
   };
 
