@@ -73,11 +73,11 @@ VS Code extension, team/enterprise features.
 | 14 | Scaffold npm package (node-pty, qrcode-terminal, chalk, boxen, ws) | ✅ Done | fcadd76 |
 | 15 | Connect command (call /pair/init, render QR, open WS) | ✅ Done | 8f6b6eb |
 | 16 | Code submission (read 6-digit from stdin, send to backend) | ✅ Done | 92d5a9b |
-| 17 | Paired event → store pubkey, spawn pty, stdin interception | ⬜ Pending | — |
-| 18 | Local signature verification (ECDSA P-256, seq, ts ±30s) | ⬜ Pending | — |
-| 19 | Write verified input to pty, stream output back | ⬜ Pending | — |
-| 20 | Status box UI (green/red, always visible) | ⬜ Pending | — |
-| 21 | Dangerous command detection + laptop-side confirmation | ⬜ Pending | — |
+| 17 | Paired event → store pubkey, spawn pty, stdin interception | ✅ Done | 1917a35 |
+| 18 | Local signature verification (ECDSA P-256, seq, ts ±30s) | ✅ Done | 37a2c0b |
+| 19 | Write verified input to pty, stream output back | ✅ Done | f9a3914 |
+| 20 | Status box UI (green/red, always visible) | ✅ Done | 24ac535 |
+| 21 | Dangerous command detection + laptop-side confirmation | ✅ Done | c2b5a8c |
 | 22 | disconnect/devices/revoke/status commands | ⬜ Pending | — |
 | 23 | Teardown handlers (SIGINT/SIGTERM/SIGHUP/exit) | ⬜ Pending | — |
 | 24 | Audit log command + hash-chain verification | ⬜ Pending | — |
