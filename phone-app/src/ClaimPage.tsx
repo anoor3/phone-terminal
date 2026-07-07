@@ -38,11 +38,14 @@ export function ClaimPage({ onClaimed }: ClaimPageProps) {
     };
 
     ws.onmessage = async (event) => {
-      const msg = JSON.parse(event.data as string) as { type: string; error?: string };
+      const msg = JSON.parse(event.data as string) as { type: string; error?: string; code?: string };
 
       if (msg.type === 'phone_claim_ack') {
         // Generate ECDSA keypair on successful claim
         await generateKeypair();
+        // Don't transition yet — wait for code_challenge so we don't miss it
+      } else if (msg.type === 'code_challenge') {
+        // Code arrived — now transition with the code included
         onClaimed(ws, pairingId);
       } else if (msg.type === 'error') {
         setError(msg.error ?? 'Pairing failed. Token may be expired or already claimed.');
@@ -97,8 +100,8 @@ export function ClaimPage({ onClaimed }: ClaimPageProps) {
         aria-label="Connecting"
       />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <h1 style={{ marginBottom: '0.5rem' }}>Claiming Session…</h1>
-      <p style={{ color: '#666' }}>Connecting to your laptop</p>
+      <h1 style={{ marginBottom: '0.5rem' }}>Connecting…</h1>
+      <p style={{ color: '#666' }}>Pairing with your laptop</p>
     </div>
   );
 }
