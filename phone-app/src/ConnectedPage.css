@@ -244,6 +244,13 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+.mode-hint {
+  margin: -0.12rem 0 0.5rem;
+  color: #7f91a6;
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
 .composer-actions {
   display: flex;
   gap: 0.46rem;

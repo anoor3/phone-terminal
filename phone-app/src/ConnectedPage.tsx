@@ -32,6 +32,7 @@ const CONTROL_KEYS = [
 export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPageProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const seqRef = useRef(0);
@@ -40,6 +41,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
   const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keyboardOpenRef = useRef(false);
   const [input, setInput] = useState('');
+  const [livePreview, setLivePreview] = useState('');
   const [status, setStatus] = useState('Connected');
   const [focusMode, setFocusMode] = useState(false);
   const [controlsOpen, setControlsOpen] = useState(false);
@@ -230,6 +232,15 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     if (sent) setStatus(label);
   }, [sendEnvelope]);
 
+  const refocusInput = useCallback(() => {
+    window.setTimeout(() => inputRef.current?.focus(), 0);
+  }, []);
+
+  const sendSpecialInput = useCallback((payload: string, label: string) => {
+    void sendInput(payload, label);
+    refocusInput();
+  }, [refocusInput, sendInput]);
+
   const sendCommand = async (command: string) => {
     await sendInput(`${command}\r`, 'Command sent');
   };
@@ -273,16 +284,19 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     e.preventDefault();
 
     if (nativeEvent.inputType === 'insertText' && nativeEvent.data) {
+      setLivePreview((current) => `${current}${nativeEvent.data}`.slice(-48));
       void sendInput(nativeEvent.data, 'Raw');
       return;
     }
 
     if (nativeEvent.inputType === 'insertLineBreak') {
+      setLivePreview('');
       void sendInput('\r', 'Enter');
       return;
     }
 
     if (nativeEvent.inputType === 'deleteContentBackward') {
+      setLivePreview((current) => current.slice(0, -1));
       void sendInput('\x7f', 'Backspace');
     }
   };
@@ -303,6 +317,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
 
     if (e.ctrlKey && e.key.toLowerCase() === 'c') {
       e.preventDefault();
+      setLivePreview('');
       void sendInput('\x03', 'Ctrl+C');
       return;
     }
@@ -310,6 +325,8 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     const payload = keyPayloads[e.key];
     if (payload) {
       e.preventDefault();
+      if (e.key === 'Enter') setLivePreview('');
+      if (e.key === 'Backspace') setLivePreview((current) => current.slice(0, -1));
       void sendInput(payload, e.key);
     }
   };
@@ -319,6 +336,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     const pasted = e.clipboardData.getData('text');
     if (!pasted) return;
     e.preventDefault();
+    setLivePreview(pasted.slice(-48));
     void sendInput(pasted, 'Paste');
   };
 
@@ -374,31 +392,41 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
           <button
             className={`mode-option${inputMode === 'chat' ? ' active' : ''}`}
             type="button"
-            onClick={() => setInputMode('chat')}
+            onClick={() => {
+              setInputMode('chat');
+              setLivePreview('');
+            }}
             role="tab"
             aria-selected={inputMode === 'chat'}
           >
-            Chat
+            Command
           </button>
           <button
             className={`mode-option${inputMode === 'raw' ? ' active' : ''}`}
             type="button"
             onClick={() => {
               setInput('');
+              setLivePreview('');
               setInputMode('raw');
+              refocusInput();
             }}
             role="tab"
             aria-selected={inputMode === 'raw'}
           >
-            Raw
+            Live Keys
           </button>
+        </div>
+        <div className="mode-hint">
+          {inputMode === 'raw'
+            ? 'Live Keys sends each key as you type. Use this for Codex, Vim, Nano, and other interactive apps.'
+            : 'Command mode sends the whole line when you tap Send.'}
         </div>
 
         <div className="composer-actions">
           <button
             className="quick-action danger-action"
             type="button"
-            onClick={() => void sendInput('\x03', 'Ctrl+C')}
+            onClick={() => sendSpecialInput('\x03', 'Ctrl+C')}
           >
             Ctrl+C
           </button>
@@ -426,7 +454,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
                 key={key.label}
                 className="control-key"
                 type="button"
-                onClick={() => void sendInput(key.payload, key.label)}
+                onClick={() => sendSpecialInput(key.payload, key.label)}
               >
                 {key.label}
               </button>
@@ -437,15 +465,16 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
         <form className="command-form" onSubmit={handleSubmit}>
           <span className="prompt-marker" aria-hidden="true">$</span>
           <input
+            ref={inputRef}
             type="text"
-            value={inputMode === 'raw' ? '' : input}
+            value={inputMode === 'raw' ? livePreview : input}
             onBeforeInput={handleRawBeforeInput}
             onKeyDown={handleRawKeyDown}
             onPaste={handleRawPaste}
             onChange={(e) => {
               if (inputMode === 'chat') setInput(e.target.value);
             }}
-            placeholder={inputMode === 'raw' ? 'Raw mode: keys send instantly...' : 'Type a command...'}
+            placeholder={inputMode === 'raw' ? 'Live Keys: type here...' : 'Type a command...'}
             autoFocus
             className="command-input"
             aria-label="Command input"
@@ -454,7 +483,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
             spellCheck={false}
           />
           <button type="submit" className="send-button">
-            Send
+            {inputMode === 'raw' ? 'Enter' : 'Send'}
           </button>
         </form>
       </section>
