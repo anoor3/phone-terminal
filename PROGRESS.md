@@ -86,12 +86,12 @@ VS Code extension, team/enterprise features.
 
 | # | Task | Status | Commit |
 |---|------|--------|--------|
-| 25 | Scaffold Vite + React + TypeScript + xterm.js | ⬜ Pending | — |
-| 26 | Crypto module (ECDSA P-256 keypair, IndexedDB, sign) | ⬜ Pending | — |
-| 27 | Claim page (read token from fragment, phone_claim) | ⬜ Pending | — |
-| 28 | Code display page (6-digit, countdown timer) | ⬜ Pending | — |
-| 29 | Connected page (xterm.js, signed input, disconnect) | ⬜ Pending | — |
-| 30 | Disconnected page (red state, reason, no actions) | ⬜ Pending | — |
+| 25 | Scaffold Vite + React + TypeScript + xterm.js | ✅ Done | 7cc3408 |
+| 26 | Crypto module (ECDSA P-256 keypair, IndexedDB, sign) | ✅ Done | d4ecde8 |
+| 27 | Claim page (read token from fragment, phone_claim) | ✅ Done | fcb5598 |
+| 28 | Code display page (6-digit, countdown timer) | ✅ Done | c6ec56e |
+| 29 | Connected page (xterm.js, signed input, disconnect) | ✅ Done | 54c1fb6 |
+| 30 | Disconnected page (red state, reason, no actions) | ✅ Done | 26ea3ea |
 
 ### Security & Quality
 
