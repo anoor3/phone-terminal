@@ -275,6 +275,13 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+.primary-action {
+  border-color: #4091ff;
+  background: #10284a;
+  color: #d7eaff;
+  box-shadow: 0 8px 20px rgba(47, 129, 247, 0.2);
+}
+
 .danger-action {
   border-color: #5b2733;
   background: #251117;

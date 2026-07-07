@@ -439,6 +439,15 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
         </div>
 
         <div className="composer-actions">
+          {inputMode === 'raw' && (
+            <button
+              className="quick-action primary-action"
+              type="button"
+              onClick={() => sendSpecialInput('\r', 'Enter')}
+            >
+              Enter
+            </button>
+          )}
           <button
             className="quick-action danger-action"
             type="button"
