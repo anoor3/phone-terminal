@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { generateKeypair } from './crypto';
 
+// WSS only — no ws:// code path exists (per §10)
 const WS_URL = import.meta.env.VITE_WS_URL ?? 'wss://localhost:3001/ws';
 
 interface ClaimPageProps {

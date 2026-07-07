@@ -42,7 +42,7 @@ export async function buildServer(config: Config) {
     timeWindow: "1 minute",
   });
 
-  // WebSocket support (WSS only since server is TLS)
+  // WSS only — no ws:// code path exists (per §10)
   await server.register(websocket);
 
   // Initialize Redis + PairingStore

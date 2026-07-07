@@ -44,7 +44,7 @@ function loadConnectConfig(): ConnectConfig {
     process.exit(1);
   }
 
-  // Enforce WSS — no plaintext WebSocket allowed
+  // WSS only — no ws:// code path exists (per §10)
   if (!wsUrl.startsWith("wss://")) {
     console.error("ERROR: PHONE_TERMINAL_WS_URL must use wss:// (no plaintext WebSocket allowed)");
     process.exit(1);
