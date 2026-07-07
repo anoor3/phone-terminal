@@ -70,9 +70,9 @@ VS Code extension, team/enterprise features.
 
 | # | Task | Status | Commit |
 |---|------|--------|--------|
-| 14 | Scaffold npm package (node-pty, qrcode-terminal, chalk, boxen, ws) | ⬜ Pending | — |
-| 15 | Connect command (call /pair/init, render QR, open WS) | ⬜ Pending | — |
-| 16 | Code submission (read 6-digit from stdin, send to backend) | ⬜ Pending | — |
+| 14 | Scaffold npm package (node-pty, qrcode-terminal, chalk, boxen, ws) | ✅ Done | fcadd76 |
+| 15 | Connect command (call /pair/init, render QR, open WS) | ✅ Done | 8f6b6eb |
+| 16 | Code submission (read 6-digit from stdin, send to backend) | ✅ Done | 92d5a9b |
 | 17 | Paired event → store pubkey, spawn pty, stdin interception | ⬜ Pending | — |
 | 18 | Local signature verification (ECDSA P-256, seq, ts ±30s) | ⬜ Pending | — |
 | 19 | Write verified input to pty, stream output back | ⬜ Pending | — |
