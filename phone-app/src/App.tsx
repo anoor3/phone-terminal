@@ -1,58 +1,58 @@
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { ClaimPage } from './ClaimPage';
+import { CodePage } from './CodePage';
+import { ConnectedPage } from './ConnectedPage';
+import { DisconnectedPage } from './DisconnectedPage';
 
 type AppState = 'claim' | 'code' | 'connected' | 'disconnected';
 
-function ClaimPage({ onNext }: { onNext: () => void }) {
-  return (
-    <div>
-      <h1>Claim Session</h1>
-      <p>Scan the QR code displayed on your laptop to claim the session.</p>
-      <button onClick={onNext}>Next (placeholder)</button>
-    </div>
-  );
-}
-
-function CodePage({ onNext }: { onNext: () => void }) {
-  return (
-    <div>
-      <h1>Verification Code</h1>
-      <p>Enter the verification code shown on your laptop.</p>
-      <button onClick={onNext}>Verify (placeholder)</button>
-    </div>
-  );
-}
-
-function ConnectedPage({ onDisconnect }: { onDisconnect: () => void }) {
-  return (
-    <div>
-      <h1>Connected</h1>
-      <p>Terminal session active. Type commands below.</p>
-      <button onClick={onDisconnect}>Disconnect (placeholder)</button>
-    </div>
-  );
-}
-
-function DisconnectedPage({ onReconnect }: { onReconnect: () => void }) {
-  return (
-    <div>
-      <h1>Disconnected</h1>
-      <p>Session ended.</p>
-      <button onClick={onReconnect}>Reconnect (placeholder)</button>
-    </div>
-  );
-}
-
 export function App() {
   const [state, setState] = useState<AppState>('claim');
+  const [disconnectReason, setDisconnectReason] = useState('');
+  const [sessionId, setSessionId] = useState('');
+  const [pairingId, setPairingId] = useState('');
+  const wsRef = useRef<WebSocket | null>(null);
+
+  const handleClaimed = useCallback((ws: WebSocket, id: string) => {
+    wsRef.current = ws;
+    setPairingId(id);
+    setState('code');
+  }, []);
+
+  const handlePaired = useCallback((sid: string) => {
+    setSessionId(sid);
+    setState('connected');
+  }, []);
+
+  const handleDisconnected = useCallback((reason: string) => {
+    setDisconnectReason(reason);
+    setState('disconnected');
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+  }, []);
 
   switch (state) {
     case 'claim':
-      return <ClaimPage onNext={() => setState('code')} />;
+      return <ClaimPage onClaimed={handleClaimed} />;
     case 'code':
-      return <CodePage onNext={() => setState('connected')} />;
+      return (
+        <CodePage
+          ws={wsRef.current!}
+          pairingId={pairingId}
+          onPaired={handlePaired}
+        />
+      );
     case 'connected':
-      return <ConnectedPage onDisconnect={() => setState('disconnected')} />;
+      return (
+        <ConnectedPage
+          ws={wsRef.current!}
+          sessionId={sessionId}
+          onDisconnected={handleDisconnected}
+        />
+      );
     case 'disconnected':
-      return <DisconnectedPage onReconnect={() => setState('claim')} />;
+      return <DisconnectedPage reason={disconnectReason} />;
   }
 }
