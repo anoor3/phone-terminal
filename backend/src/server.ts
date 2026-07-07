@@ -125,16 +125,19 @@ async function main() {
         socket, pairingId, pairingToken, ip
       );
 
-      // After successful claim, generate and push verification code
-      await generateAndPushCode(
-        {
-          pairingStore,
-          socketRegistry,
-          log,
-          onCodeValid: async () => { /* handled in code_submit */ },
-        },
-        pairingId
-      );
+      // Only generate code if claim succeeded (socket is now registered)
+      const registeredSocket = socketRegistry.getPhoneForPairing(pairingId);
+      if (registeredSocket === socket) {
+        await generateAndPushCode(
+          {
+            pairingStore,
+            socketRegistry,
+            log,
+            onCodeValid: async () => { /* handled in code_submit */ },
+          },
+          pairingId
+        );
+      }
     },
 
     onCodeSubmit: async (socket: WebSocket, pairingId: string, code: string, ip: string) => {
