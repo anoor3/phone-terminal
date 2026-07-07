@@ -24,8 +24,23 @@ program
   .command("connect")
   .description("Start a new pairing session (generates QR code)")
   .action(async () => {
-    // Implemented in task 15
-    console.log("connect command — not yet implemented");
+    const { executeConnect } = await import("./connect.js");
+    try {
+      const session = await executeConnect();
+      // Session is now active — hand off to the pairing flow handler
+      // (code submission, paired event, etc. — implemented in tasks 16-17)
+      console.log(`  ✓ WebSocket connected, awaiting phone scan...`);
+      console.log(`    Pairing ID: ${session.pairingId.slice(0, 8)}...`);
+
+      // Keep process alive while waiting
+      session.ws.on("close", () => {
+        console.log("  WebSocket closed.");
+        process.exit(0);
+      });
+    } catch (err) {
+      console.error(`  ✗ Connection failed: ${(err as Error).message}`);
+      process.exit(1);
+    }
   });
 
 program
