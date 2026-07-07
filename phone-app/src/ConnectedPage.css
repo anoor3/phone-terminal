@@ -1,0 +1,277 @@
+.terminal-shell {
+  --bg: #070b10;
+  --panel: #0d131b;
+  --panel-2: #111925;
+  --line: #223044;
+  --text: #dbe5ee;
+  --muted: #8fa3b8;
+  --green: #22c55e;
+  --blue: #2f81f7;
+  --red-bg: #2a1117;
+  --red-line: #61202d;
+  --red-text: #ffc2ca;
+
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.terminal-shell.focus-mode {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.terminal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  min-height: 3.75rem;
+  padding: calc(0.55rem + env(safe-area-inset-top)) 0.72rem 0.55rem;
+  border-bottom: 1px solid var(--line);
+  background: rgba(13, 19, 27, 0.96);
+  flex: 0 0 auto;
+}
+
+.connection-meta {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.connection-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #eef6ff;
+  font-size: 0.94rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.status-dot {
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 999px;
+  background: var(--green);
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.7);
+  flex: 0 0 auto;
+}
+
+.session-meta {
+  margin-top: 0.18rem;
+  max-width: min(54vw, 24rem);
+  overflow: hidden;
+  color: var(--muted);
+  font-family: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.status-label {
+  display: none;
+  max-width: 8.5rem;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: capitalize;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-button,
+.disconnect-button,
+.control-key,
+.send-button {
+  min-height: 2.3rem;
+  border-radius: 0.55rem;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.icon-button {
+  width: 2.55rem;
+  border: 1px solid #2d3d53;
+  background: var(--panel-2);
+  color: var(--text);
+  font-size: 0.72rem;
+}
+
+.disconnect-button {
+  border: 1px solid var(--red-line);
+  background: var(--red-bg);
+  color: var(--red-text);
+  padding: 0 0.68rem;
+  font-size: 0.76rem;
+}
+
+.fullscreen-button {
+  position: relative;
+}
+
+.fullscreen-icon {
+  position: relative;
+  display: block;
+  width: 1.12rem;
+  height: 1.12rem;
+  margin: 0 auto;
+}
+
+.fullscreen-icon::before,
+.fullscreen-icon::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+}
+
+.fullscreen-icon::before {
+  border-top: 2px solid currentColor;
+  border-left: 2px solid currentColor;
+  border-top-left-radius: 2px;
+}
+
+.fullscreen-icon::after {
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  border-bottom-right-radius: 2px;
+}
+
+.terminal-stage {
+  min-height: 0;
+  flex: 1 1 auto;
+  background: #090d12;
+  overflow: hidden;
+}
+
+.terminal-canvas {
+  width: 100%;
+  height: 100%;
+  padding: 0.68rem;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.terminal-canvas .xterm {
+  height: 100%;
+}
+
+.terminal-controls {
+  display: flex;
+  gap: 0.42rem;
+  overflow-x: auto;
+  padding: 0.48rem 0.65rem;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  scrollbar-width: none;
+  flex: 0 0 auto;
+}
+
+.terminal-controls::-webkit-scrollbar {
+  display: none;
+}
+
+.control-key {
+  border: 1px solid #2b3b50;
+  background: #101825;
+  color: #cdd8e4;
+  padding: 0 0.72rem;
+  font-family: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+  font-size: 0.76rem;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.command-form {
+  display: flex;
+  align-items: center;
+  gap: 0.58rem;
+  padding: 0.62rem 0.65rem calc(0.62rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  flex: 0 0 auto;
+}
+
+.prompt-marker {
+  color: var(--green);
+  font-family: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+  font-size: 1rem;
+  flex: 0 0 auto;
+}
+
+.command-input {
+  min-width: 0;
+  min-height: 2.9rem;
+  border: 1px solid #2d3d53;
+  border-radius: 0.62rem;
+  outline: none;
+  background: #080d13;
+  color: #eef6ff;
+  padding: 0 0.85rem;
+  font-family: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+  font-size: 16px;
+  flex: 1 1 auto;
+}
+
+.command-input::placeholder {
+  color: #6f8193;
+}
+
+.send-button {
+  border: 1px solid #4091ff;
+  background: var(--blue);
+  color: #fff;
+  padding: 0 1rem;
+  font-size: 0.92rem;
+  flex: 0 0 auto;
+}
+
+@media (min-width: 560px) {
+  .terminal-header {
+    min-height: 4rem;
+    padding-right: 0.9rem;
+    padding-left: 0.9rem;
+  }
+
+  .status-label {
+    display: block;
+  }
+
+  .session-meta {
+    max-width: 42vw;
+  }
+
+  .terminal-canvas {
+    padding: 0.85rem;
+  }
+}
+
+@media (max-width: 390px) {
+  .disconnect-button {
+    max-width: 5.7rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .icon-button {
+    width: 2.35rem;
+  }
+}

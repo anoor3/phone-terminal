@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
+import './ConnectedPage.css';
 import { clearKeypair, getKeypair, sign } from './crypto';
 
 interface ConnectedPageProps {
@@ -10,15 +11,34 @@ interface ConnectedPageProps {
   onDisconnected: (reason: string) => void;
 }
 
+interface TerminalSize {
+  cols: number;
+  rows: number;
+}
+
+const CONTROL_KEYS = [
+  { label: 'Ctrl+C', payload: '\x03' },
+  { label: 'Esc', payload: '\x1b' },
+  { label: 'Tab', payload: '\t' },
+  { label: 'Up', payload: '\x1b[A' },
+  { label: 'Down', payload: '\x1b[B' },
+  { label: 'Left', payload: '\x1b[D' },
+  { label: 'Right', payload: '\x1b[C' },
+  { label: 'Ctrl+D', payload: '\x04' },
+];
+
 export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPageProps) {
   const terminalRef = useRef<HTMLDivElement>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const seqRef = useRef(0);
+  const lastSizeRef = useRef<TerminalSize | null>(null);
+  const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [input, setInput] = useState('');
   const [status, setStatus] = useState('Connected');
+  const [focusMode, setFocusMode] = useState(false);
   const [hostname] = useState(() => {
-    // Extract hostname from WS URL or use a default
     try {
       const url = new URL(ws.url);
       return url.hostname;
@@ -27,90 +47,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     }
   });
 
-  useEffect(() => {
-    if (!terminalRef.current) return;
-
-    const term = new Terminal({
-      cursorBlink: false,
-      disableStdin: true,
-      convertEol: true,
-      fontFamily: '"SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace',
-      fontSize: 13,
-      lineHeight: 1.35,
-      scrollback: 3000,
-      theme: {
-        background: '#0b0f14',
-        foreground: '#d6deeb',
-        cursor: '#8bd5ff',
-        selectionBackground: '#2d4f67',
-        black: '#011627',
-        red: '#ef5350',
-        green: '#22c55e',
-        yellow: '#facc15',
-        blue: '#60a5fa',
-        magenta: '#c084fc',
-        cyan: '#2dd4bf',
-        white: '#d6deeb',
-      },
-    });
-    const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
-    term.open(terminalRef.current);
-    fitAddonRef.current = fitAddon;
-    window.setTimeout(() => fitAddon.fit(), 0);
-    termRef.current = term;
-    term.writeln('\x1b[38;5;81mphone-terminal\x1b[0m session ready');
-
-    const handleResize = () => fitAddon.fit();
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      fitAddonRef.current = null;
-      term.dispose();
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      let msg: Record<string, unknown>;
-      try {
-        msg = JSON.parse(event.data as string) as Record<string, unknown>;
-      } catch {
-        return;
-      }
-
-      switch (msg.type) {
-        case 'output':
-          if (msg['sessionId'] === sessionId && typeof msg['chunk'] === 'string' && termRef.current) {
-            termRef.current.write(msg['chunk']);
-            setStatus('Streaming output');
-          }
-          break;
-        case 'status':
-          if (msg['sessionId'] === sessionId && typeof msg['state'] === 'string') {
-            setStatus(msg['state'].replace(/_/g, ' '));
-          }
-          break;
-        case 'disconnect':
-        case 'disconnected':
-          void clearKeypair();
-          onDisconnected(typeof msg.reason === 'string' ? msg.reason : 'Session ended by host');
-          break;
-        case 'error':
-          if (typeof msg['error'] === 'string') setStatus(msg['error']);
-          break;
-      }
-    };
-
-    ws.addEventListener('message', handleMessage);
-
-    return () => {
-      ws.removeEventListener('message', handleMessage);
-    };
-  }, [ws, sessionId, onDisconnected]);
-
-  const sendEnvelope = async (type: string, payload: unknown) => {
+  const sendEnvelope = useCallback(async (type: string, payload: unknown) => {
     const keypair = await getKeypair();
     if (!keypair) {
       setStatus('Missing signing key');
@@ -131,13 +68,138 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     }));
 
     return true;
-  };
+  }, [sessionId, ws]);
+
+  const syncTerminalSize = useCallback(() => {
+    const term = termRef.current;
+    const fitAddon = fitAddonRef.current;
+    if (!term || !fitAddon) return;
+
+    fitAddon.fit();
+    const nextSize = { cols: term.cols, rows: term.rows };
+    const previousSize = lastSizeRef.current;
+    if (
+      nextSize.cols < 2 ||
+      nextSize.rows < 2 ||
+      (previousSize?.cols === nextSize.cols && previousSize?.rows === nextSize.rows)
+    ) {
+      return;
+    }
+
+    lastSizeRef.current = nextSize;
+    void sendEnvelope('resize', nextSize);
+  }, [sendEnvelope]);
+
+  const scheduleResize = useCallback(() => {
+    if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
+    resizeTimerRef.current = setTimeout(syncTerminalSize, 80);
+  }, [syncTerminalSize]);
+
+  useEffect(() => {
+    if (!terminalRef.current) return;
+
+    const term = new Terminal({
+      cursorBlink: true,
+      disableStdin: true,
+      convertEol: true,
+      fontFamily: '"SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace',
+      fontSize: 13,
+      lineHeight: 1.32,
+      scrollback: 5000,
+      theme: {
+        background: '#090d12',
+        foreground: '#dbe5ee',
+        cursor: '#93c5fd',
+        selectionBackground: '#284763',
+        black: '#0b0f14',
+        red: '#ef4444',
+        green: '#22c55e',
+        yellow: '#eab308',
+        blue: '#3b82f6',
+        magenta: '#a855f7',
+        cyan: '#14b8a6',
+        white: '#dbe5ee',
+      },
+    });
+    const fitAddon = new FitAddon();
+    term.loadAddon(fitAddon);
+    term.open(terminalRef.current);
+    termRef.current = term;
+    fitAddonRef.current = fitAddon;
+    term.writeln('\x1b[38;5;81mphone-terminal\x1b[0m session ready');
+    scheduleResize();
+
+    const resizeObserver = new ResizeObserver(scheduleResize);
+    resizeObserver.observe(terminalRef.current);
+    window.addEventListener('resize', scheduleResize);
+    window.addEventListener('orientationchange', scheduleResize);
+    window.visualViewport?.addEventListener('resize', scheduleResize);
+
+    return () => {
+      if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', scheduleResize);
+      window.removeEventListener('orientationchange', scheduleResize);
+      window.visualViewport?.removeEventListener('resize', scheduleResize);
+      fitAddonRef.current = null;
+      termRef.current = null;
+      term.dispose();
+    };
+  }, [scheduleResize]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setFocusMode(document.fullscreenElement === shellRef.current);
+      scheduleResize();
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, [scheduleResize]);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      let msg: Record<string, unknown>;
+      try {
+        msg = JSON.parse(event.data as string) as Record<string, unknown>;
+      } catch {
+        return;
+      }
+
+      switch (msg.type) {
+        case 'output':
+          if (msg['sessionId'] === sessionId && typeof msg['chunk'] === 'string' && termRef.current) {
+            termRef.current.write(msg['chunk']);
+            setStatus('Streaming');
+          }
+          break;
+        case 'status':
+          if (msg['sessionId'] === sessionId && typeof msg['state'] === 'string') {
+            setStatus(msg['state'].replace(/_/g, ' '));
+          }
+          break;
+        case 'disconnect':
+        case 'disconnected':
+          void clearKeypair();
+          onDisconnected(typeof msg.reason === 'string' ? msg.reason : 'Session ended by host');
+          break;
+        case 'error':
+          if (typeof msg['error'] === 'string') setStatus(msg['error']);
+          break;
+      }
+    };
+
+    ws.addEventListener('message', handleMessage);
+    return () => ws.removeEventListener('message', handleMessage);
+  }, [ws, sessionId, onDisconnected]);
+
+  const sendInput = useCallback(async (payload: string, label = 'Sent') => {
+    const sent = await sendEnvelope('input', payload);
+    if (sent) setStatus(label);
+  }, [sendEnvelope]);
 
   const sendCommand = async (command: string) => {
-    const payload = command + '\n'; // Add newline so command executes
-    termRef.current?.writeln(`\x1b[38;5;244m$ ${command}\x1b[0m`);
-    setStatus('Command sent');
-    await sendEnvelope('input', payload);
+    await sendInput(`${command}\n`, 'Command sent');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -153,176 +215,94 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     onDisconnected('Manual disconnect');
   };
 
+  const toggleFocusMode = async () => {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen().catch(() => undefined);
+      setFocusMode(false);
+      scheduleResize();
+      return;
+    }
+
+    setFocusMode(true);
+    await shellRef.current?.requestFullscreen?.().catch(() => undefined);
+    scheduleResize();
+  };
+
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        minHeight: '100vh',
-        background: '#080c10',
-        color: '#d6deeb',
-        fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-      }}
-    >
-      <div
-        style={{
-          background: '#0f1720',
-          borderBottom: '1px solid #1f2a37',
-          padding: '0.7rem 0.9rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '0.75rem',
-        }}
-      >
-        <div style={{ minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span
-              aria-hidden="true"
-              style={{
-                width: '0.6rem',
-                height: '0.6rem',
-                borderRadius: '999px',
-                background: '#22c55e',
-                boxShadow: '0 0 14px rgba(34, 197, 94, 0.65)',
-                flex: '0 0 auto',
-              }}
-            />
-            <strong style={{ fontSize: '0.95rem', whiteSpace: 'nowrap' }}>Connected</strong>
+    <div ref={shellRef} className={`terminal-shell${focusMode ? ' focus-mode' : ''}`}>
+      <header className="terminal-header">
+        <div className="connection-meta">
+          <div className="connection-title">
+            <span className="status-dot" aria-hidden="true" />
+            <span>Connected</span>
           </div>
-          <div
-            style={{
-              marginTop: '0.15rem',
-              color: '#8ea3b7',
-              fontFamily: '"SFMono-Regular", Menlo, Consolas, monospace',
-              fontSize: '0.75rem',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              maxWidth: '70vw',
-            }}
-          >
+          <div className="session-meta" title={`${hostname} / ${sessionId}`}>
             {hostname} / {sessionId.slice(0, 10)}
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flex: '0 0 auto' }}>
-          <span
-            style={{
-              color: '#8ea3b7',
-              fontSize: '0.78rem',
-              textTransform: 'capitalize',
-              maxWidth: '8rem',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {status}
-          </span>
+
+        <div className="header-actions">
+          <span className="status-label">{status}</span>
           <button
+            className="icon-button"
             onClick={() => termRef.current?.clear()}
-            style={{
-              background: '#162231',
-              color: '#d6deeb',
-              border: '1px solid #273549',
-              borderRadius: '6px',
-              padding: '0.45rem 0.65rem',
-              fontWeight: 700,
-              fontSize: '0.78rem',
-              cursor: 'pointer',
-            }}
             type="button"
+            aria-label="Clear terminal"
+            title="Clear terminal"
           >
-            Clear
+            CLR
           </button>
           <button
+            className="icon-button fullscreen-button"
+            onClick={() => void toggleFocusMode()}
+            type="button"
+            aria-label={focusMode ? 'Exit fullscreen' : 'Open fullscreen'}
+            title={focusMode ? 'Exit fullscreen' : 'Open fullscreen'}
+          >
+            <span className="fullscreen-icon" aria-hidden="true" />
+          </button>
+          <button
+            className="disconnect-button"
             onClick={() => void handleDisconnect()}
-            style={{
-              background: '#2a1117',
-              color: '#ffb4bf',
-              border: '1px solid #5f1f2b',
-              borderRadius: '6px',
-              padding: '0.45rem 0.65rem',
-              fontWeight: 700,
-              fontSize: '0.78rem',
-              cursor: 'pointer',
-            }}
             type="button"
           >
             Disconnect
           </button>
         </div>
+      </header>
+
+      <main className="terminal-stage">
+        <div ref={terminalRef} className="terminal-canvas" />
+      </main>
+
+      <div className="terminal-controls" aria-label="Terminal control keys">
+        {CONTROL_KEYS.map((key) => (
+          <button
+            key={key.label}
+            className="control-key"
+            type="button"
+            onClick={() => void sendInput(key.payload, key.label)}
+          >
+            {key.label}
+          </button>
+        ))}
       </div>
 
-      <div
-        ref={terminalRef}
-        style={{
-          flex: 1,
-          minHeight: 0,
-          background: '#0b0f14',
-          padding: '0.75rem',
-          overflow: 'hidden',
-        }}
-      />
-
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.6rem',
-          borderTop: '1px solid #1f2a37',
-          background: '#0f1720',
-          padding: '0.65rem',
-          paddingBottom: 'max(0.65rem, env(safe-area-inset-bottom))',
-        }}
-      >
-        <span
-          aria-hidden="true"
-          style={{
-            color: '#22c55e',
-            fontFamily: '"SFMono-Regular", Menlo, Consolas, monospace',
-            fontSize: '1rem',
-            flex: '0 0 auto',
-          }}
-        >
-          $
-        </span>
+      <form className="command-form" onSubmit={handleSubmit}>
+        <span className="prompt-marker" aria-hidden="true">$</span>
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Enter command…"
+          placeholder="Enter command..."
           autoFocus
-          style={{
-            flex: 1,
-            minWidth: 0,
-            padding: '0.75rem 0.85rem',
-            border: '1px solid #273549',
-            borderRadius: '6px',
-            outline: 'none',
-            background: '#0b0f14',
-            color: '#e5edf5',
-            fontSize: '1rem',
-            fontFamily: '"SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace',
-          }}
+          className="command-input"
           aria-label="Command input"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
         />
-        <button
-          type="submit"
-          style={{
-            padding: '0.75rem 1rem',
-            background: '#1f6feb',
-            color: '#ffffff',
-            border: '1px solid #2f81f7',
-            borderRadius: '6px',
-            fontWeight: 800,
-            fontSize: '0.9rem',
-            cursor: 'pointer',
-            flex: '0 0 auto',
-          }}
-        >
+        <button type="submit" className="send-button">
           Send
         </button>
       </form>
