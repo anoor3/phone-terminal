@@ -61,10 +61,10 @@ VS Code extension, team/enterprise features.
 | 7 | WS cli_hello handler | ✅ Done | 56c3376 |
 | 8 | WS phone_claim handler (single-use token) | ✅ Done | 6ab9c9c |
 | 9 | Verification code generation + code_submit (5 attempts max) | ✅ Done | 0e0ce4a |
-| 10 | Pairing completion (sessionId, deviceId, paired event) | ⬜ Pending | — |
-| 11 | Control-phase relay (signed messages, defense-in-depth verify) | ⬜ Pending | — |
-| 12 | Session disconnect handling (graceful + socket-close detection) | ⬜ Pending | — |
-| 13 | Device revocation + force-drop active session | ⬜ Pending | — |
+| 10 | Pairing completion (sessionId, deviceId, paired event) | ✅ Done | 16ab880 |
+| 11 | Control-phase relay (signed messages, defense-in-depth verify) | ✅ Done | d5560f4 |
+| 12 | Session disconnect handling (graceful + socket-close detection) | ✅ Done | 0f27910 |
+| 13 | Device revocation + force-drop active session | ✅ Done | 56bfe19 |
 
 ### CLI
 
