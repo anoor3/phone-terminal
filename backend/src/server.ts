@@ -109,6 +109,36 @@ async function main() {
 
   // Store phone public keys during pairing (keyed by pairingId)
   const phonePublicKeys = new Map<string, Record<string, unknown>>();
+  const codePushedForPairing = new Set<string>();
+
+  const isValidPublicKeyJwk = (jwk: Record<string, unknown>): boolean => (
+    jwk["kty"] === "EC" &&
+    jwk["crv"] === "P-256" &&
+    typeof jwk["x"] === "string" &&
+    typeof jwk["y"] === "string"
+  );
+
+  const pushCodeIfReady = async (pairingId: string): Promise<void> => {
+    if (codePushedForPairing.has(pairingId)) return;
+    if (!phonePublicKeys.has(pairingId)) return;
+
+    const phoneSocket = socketRegistry.getPhoneForPairing(pairingId);
+    if (!phoneSocket) return;
+
+    const pushed = await generateAndPushCode(
+      {
+        pairingStore,
+        socketRegistry,
+        log,
+        onCodeValid: async () => { /* handled in code_submit */ },
+      },
+      pairingId
+    );
+
+    if (pushed) {
+      codePushedForPairing.add(pairingId);
+    }
+  };
 
   // WebSocket message router — connects ALL handlers
   const messageRouter = createMessageRouter({
@@ -128,18 +158,12 @@ async function main() {
         socket, pairingId, pairingToken, ip
       );
 
-      // Only generate code if claim succeeded (socket is now registered)
+      // Only issue the human verification code after the phone's public key is
+      // registered. That guarantees a valid key exists before code_submit can
+      // complete pairing and removes the code/key generation race.
       const registeredSocket = socketRegistry.getPhoneForPairing(pairingId);
       if (registeredSocket === socket) {
-        await generateAndPushCode(
-          {
-            pairingStore,
-            socketRegistry,
-            log,
-            onCodeValid: async () => { /* handled in code_submit */ },
-          },
-          pairingId
-        );
+        await pushCodeIfReady(pairingId);
       }
     },
 
@@ -150,7 +174,11 @@ async function main() {
           socketRegistry,
           log,
           onCodeValid: async (validPairingId: string) => {
-            const publicKeyJwk = phonePublicKeys.get(validPairingId) ?? {};
+            const publicKeyJwk = phonePublicKeys.get(validPairingId);
+            if (!publicKeyJwk || !isValidPublicKeyJwk(publicKeyJwk)) {
+              log("error", { validPairingId }, "code_submit: cannot complete pairing without a valid phone public key");
+              throw new Error("missing_phone_public_key");
+            }
             await completePairing(
               { pairingStore, socketRegistry, pool, log },
               validPairingId,
@@ -159,6 +187,7 @@ async function main() {
               "cli-instance"
             );
             phonePublicKeys.delete(validPairingId);
+            codePushedForPairing.delete(validPairingId);
           },
         },
         socket, pairingId, code, ip
@@ -194,9 +223,14 @@ async function main() {
       await handleDisconnectMessage(disconnectDeps, socket, message, ip);
     },
 
-    onPublicKey: (pairingId: string, publicKeyJwk: Record<string, unknown>) => {
+    onPublicKey: async (pairingId: string, publicKeyJwk: Record<string, unknown>) => {
+      if (!isValidPublicKeyJwk(publicKeyJwk)) {
+        log("warn", { pairingId }, "Rejected invalid phone public key");
+        return;
+      }
       phonePublicKeys.set(pairingId, publicKeyJwk);
       log("info", { pairingId }, "Received phone public key");
+      await pushCodeIfReady(pairingId);
     },
   });
 
