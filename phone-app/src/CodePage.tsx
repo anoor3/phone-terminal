@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import './CodePage.css';
 
 interface CodePageProps {
   ws: WebSocket;
@@ -73,32 +74,24 @@ export function CodePage({ ws, pairingId: _pairingId, initialCode, onPaired }: C
 
   if (error) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>🔒</div>
-        <h1 style={{ color: '#e53e3e', marginBottom: '0.5rem' }}>Session Locked</h1>
-        <p style={{ color: '#666' }}>{error}</p>
+      <div className="code-page">
+        <div className="code-panel">
+          <div className="code-error-icon">!</div>
+          <h1 className="code-title">Session Locked</h1>
+          <p className="code-copy">{error}</p>
+        </div>
       </div>
     );
   }
 
   if (!code) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <div
-          style={{
-            width: '48px',
-            height: '48px',
-            border: '4px solid #e2e8f0',
-            borderTopColor: '#3182ce',
-            borderRadius: '50%',
-            margin: '2rem auto',
-            animation: 'spin 1s linear infinite',
-          }}
-          role="status"
-          aria-label="Waiting for code"
-        />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <p style={{ color: '#666' }}>Waiting for verification code…</p>
+      <div className="code-page">
+        <div className="code-panel">
+          <div className="code-spinner" role="status" aria-label="Waiting for code" />
+          <h1 className="code-title">Preparing Secure Pairing</h1>
+          <p className="code-copy">Generating a one-time verification code.</p>
+        </div>
       </div>
     );
   }
@@ -109,16 +102,21 @@ export function CodePage({ ws, pairingId: _pairingId, initialCode, onPaired }: C
   const strokeDashoffset = circumference * (1 - progress);
 
   return (
-    <div style={{ padding: '2rem', textAlign: 'center' }}>
-      {/* Countdown ring */}
-      <div style={{ position: 'relative', width: '120px', height: '120px', margin: '1rem auto' }}>
-        <svg width="120" height="120" viewBox="0 0 120 120" aria-hidden="true">
+    <div className="code-page">
+      <div className="code-panel">
+        <div className="code-status">
+          <span className="code-status-dot" aria-hidden="true" />
+          Pairing Active
+        </div>
+
+        <div className="code-ring">
+          <svg width="132" height="132" viewBox="0 0 120 120" aria-hidden="true">
           <circle
             cx="60"
             cy="60"
             r="54"
             fill="none"
-            stroke="#e2e8f0"
+            stroke="#1d2a3a"
             strokeWidth="6"
           />
           <circle
@@ -126,7 +124,7 @@ export function CodePage({ ws, pairingId: _pairingId, initialCode, onPaired }: C
             cy="60"
             r="54"
             fill="none"
-            stroke={secondsLeft > 30 ? '#3182ce' : '#e53e3e'}
+            stroke={secondsLeft > 30 ? '#f1c45b' : '#ff6578'}
             strokeWidth="6"
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}
@@ -135,39 +133,18 @@ export function CodePage({ ws, pairingId: _pairingId, initialCode, onPaired }: C
             style={{ transition: 'stroke-dashoffset 1s linear' }}
           />
         </svg>
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            fontSize: '1.25rem',
-            fontWeight: 'bold',
-            color: secondsLeft > 30 ? '#2d3748' : '#e53e3e',
-          }}
-        >
-          {secondsLeft}s
+          <div className="code-time">{secondsLeft}s</div>
         </div>
-      </div>
 
-      {/* 6-digit code display */}
-      <div
-        style={{
-          fontSize: '48px',
-          fontWeight: 'bold',
-          letterSpacing: '0.3em',
-          fontFamily: 'monospace',
-          margin: '1.5rem 0',
-          color: '#1a202c',
-        }}
-        aria-label={`Verification code: ${code.split('').join(' ')}`}
-      >
-        {code}
-      </div>
+        <h1 className="code-title">Enter This Code</h1>
+        <div className="verification-code" aria-label={`Verification code: ${code.split('').join(' ')}`}>
+          {code.split('').map((digit, index) => (
+            <span className="code-digit" key={`${digit}-${index}`}>{digit}</span>
+          ))}
+        </div>
 
-      <p style={{ color: '#4a5568', fontSize: '1.1rem' }}>
-        Type this code into your terminal
-      </p>
+        <p className="code-copy">Type the 6-digit code into your laptop terminal to finish pairing.</p>
+      </div>
     </div>
   );
 }

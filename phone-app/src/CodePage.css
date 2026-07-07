@@ -1,0 +1,120 @@
+.code-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: calc(1.2rem + env(safe-area-inset-top)) 1.1rem calc(1.2rem + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 50% 0%, rgba(47, 129, 247, 0.18), transparent 38rem),
+    #070b10;
+  color: #eef6ff;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.code-panel {
+  width: min(100%, 28rem);
+  text-align: center;
+}
+
+.code-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 1.2rem;
+  color: #8fa3b8;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.code-status-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 16px rgba(34, 197, 94, 0.68);
+}
+
+.code-ring {
+  position: relative;
+  width: 8.25rem;
+  height: 8.25rem;
+  margin: 0 auto 1.25rem;
+}
+
+.code-ring svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.code-time {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  color: #dbe5ee;
+  font-family: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+  font-size: 1.05rem;
+  font-weight: 900;
+  transform: translate(-50%, -50%);
+}
+
+.verification-code {
+  display: flex;
+  justify-content: center;
+  gap: clamp(0.34rem, 2vw, 0.72rem);
+  margin: 1.3rem 0 1.05rem;
+}
+
+.code-digit {
+  display: grid;
+  place-items: center;
+  width: clamp(2.35rem, 12vw, 3.15rem);
+  aspect-ratio: 0.82;
+  border: 1px solid rgba(245, 197, 95, 0.38);
+  border-radius: 0.78rem;
+  background: linear-gradient(180deg, #fff5ca 0%, #f1c45b 42%, #b9801f 100%);
+  color: #160f05;
+  box-shadow: 0 0 32px rgba(241, 196, 91, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  font-family: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
+  font-size: clamp(1.65rem, 7vw, 2.35rem);
+  font-weight: 950;
+}
+
+.code-title {
+  margin: 0;
+  color: #eef6ff;
+  font-size: clamp(1.35rem, 6vw, 1.85rem);
+  letter-spacing: 0;
+}
+
+.code-copy {
+  max-width: 21rem;
+  margin: 0.65rem auto 0;
+  color: #9fb1c5;
+  font-size: 1rem;
+  line-height: 1.45;
+}
+
+.code-error-icon {
+  margin-bottom: 1rem;
+  color: #ff9aaa;
+  font-size: 2.4rem;
+}
+
+.code-spinner {
+  width: 3.2rem;
+  height: 3.2rem;
+  margin: 0 auto 1.2rem;
+  border: 4px solid #1e2b3b;
+  border-top-color: #2f81f7;
+  border-radius: 999px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
