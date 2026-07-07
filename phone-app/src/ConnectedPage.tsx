@@ -248,6 +248,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputMode === 'raw') {
+      setLivePreview('');
       void sendInput('\r', 'Enter');
       return;
     }
@@ -278,27 +279,27 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     scheduleResize();
   };
 
-  const handleRawBeforeInput = (e: React.FormEvent<HTMLInputElement>) => {
-    if (inputMode !== 'raw') return;
-    const nativeEvent = e.nativeEvent as InputEvent;
-    e.preventDefault();
-
-    if (nativeEvent.inputType === 'insertText' && nativeEvent.data) {
-      setLivePreview((current) => `${current}${nativeEvent.data}`.slice(-48));
-      void sendInput(nativeEvent.data, 'Raw');
+  const handleLiveKeysChange = (nextValue: string) => {
+    if (inputMode === 'chat') {
+      setInput(nextValue);
       return;
     }
 
-    if (nativeEvent.inputType === 'insertLineBreak') {
-      setLivePreview('');
-      void sendInput('\r', 'Enter');
+    if (nextValue.length > livePreview.length) {
+      const inserted = nextValue.slice(livePreview.length);
+      setLivePreview(nextValue);
+      void sendInput(inserted, 'Live Keys');
       return;
     }
 
-    if (nativeEvent.inputType === 'deleteContentBackward') {
-      setLivePreview((current) => current.slice(0, -1));
-      void sendInput('\x7f', 'Backspace');
+    if (nextValue.length < livePreview.length) {
+      const deletedCount = livePreview.length - nextValue.length;
+      setLivePreview(nextValue);
+      void sendInput('\x7f'.repeat(deletedCount), 'Backspace');
+      return;
     }
+
+    setLivePreview(nextValue);
   };
 
   const handleRawKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -468,12 +469,9 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
             ref={inputRef}
             type="text"
             value={inputMode === 'raw' ? livePreview : input}
-            onBeforeInput={handleRawBeforeInput}
             onKeyDown={handleRawKeyDown}
             onPaste={handleRawPaste}
-            onChange={(e) => {
-              if (inputMode === 'chat') setInput(e.target.value);
-            }}
+            onChange={(e) => handleLiveKeysChange(e.target.value)}
             placeholder={inputMode === 'raw' ? 'Live Keys: type here...' : 'Type a command...'}
             autoFocus
             className="command-input"
