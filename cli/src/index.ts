@@ -41,18 +41,53 @@ program
   .description("Start a new pairing session (generates QR code)")
   .action(async () => {
     const { executeConnect } = await import("./connect.js");
+    const { handleCodeSubmission } = await import("./code-submit.js");
     try {
       const session = await executeConnect();
       console.log(`  ✓ WebSocket connected, awaiting phone scan...`);
-      console.log(`    Pairing ID: ${session.pairingId.slice(0, 8)}...`);
+      console.log(`    Pairing ID: ${session.pairingId.slice(0, 8)}...\n`);
 
-      // Keep process alive while waiting
+      // Wait for phone to claim the pairing
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error("Pairing timed out — no phone scanned within 120s"));
+        }, 120_000);
+
+        session.ws.on("message", (data: Buffer | ArrayBuffer | Buffer[]) => {
+          const msg = JSON.parse(data.toString()) as Record<string, unknown>;
+          if (msg["type"] === "phone_claimed") {
+            clearTimeout(timeout);
+            console.log("  📱 Phone connected!\n");
+            resolve();
+          } else if (msg["type"] === "error") {
+            clearTimeout(timeout);
+            reject(new Error(msg["error"] as string));
+          }
+        });
+
+        session.ws.on("close", () => {
+          clearTimeout(timeout);
+          reject(new Error("Connection closed"));
+        });
+      });
+
+      // Phone claimed — now handle code submission
+      const codeResult = await handleCodeSubmission(session.ws, session.pairingId);
+      if (!codeResult.success) {
+        console.error(`  Pairing failed: ${codeResult.error}`);
+        process.exit(1);
+      }
+
+      // Wait for paired event
+      console.log("  Waiting for session to be established...\n");
+      // Keep process alive
       session.ws.on("close", () => {
-        console.log("  WebSocket closed.");
+        console.log("  Session ended.");
         process.exit(0);
       });
+
     } catch (err) {
-      console.error(`  ✗ Connection failed: ${(err as Error).message}`);
+      console.error(`  ✗ ${(err as Error).message}`);
       process.exit(1);
     }
   });
