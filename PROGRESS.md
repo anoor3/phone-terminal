@@ -23,7 +23,7 @@ Cryptographically secured phone-to-laptop remote terminal control system. Every 
 
 ## Build Phases
 
-### Phase 1 — Secure Core (current)
+### Phase 1 — Secure Core (COMPLETE ✅)
 
 Everything required before anyone uses this for real work.
 
@@ -97,11 +97,11 @@ VS Code extension, team/enterprise features.
 
 | # | Task | Status | Commit |
 |---|------|--------|--------|
-| 31 | TLS/WSS enforcement (mkcert, no ws:// paths) | ⬜ Pending | — |
-| 32 | Idle timeout (15 min → auto-disconnect) | ⬜ Pending | — |
-| 33 | Integration testing (e2e pairing, replay rejection) | ⬜ Pending | — |
-| 34 | Attack simulation checklist (§11) | ⬜ Pending | — |
-| 35 | Documentation (README, setup, architecture) | ⬜ Pending | — |
+| 31 | TLS/WSS enforcement (mkcert, no ws:// paths) | ✅ Done | ac45f7b |
+| 32 | Idle timeout (15 min → auto-disconnect) | ✅ Done | 5c6e9b2 |
+| 33 | Integration testing (e2e pairing, replay rejection) | ✅ Done | a6c92cf |
+| 34 | Attack simulation checklist (§11) | ✅ Done | 29eda4c |
+| 35 | Documentation (README, setup, architecture) | ✅ Done | 6a3196f |
 
 ---
 
