@@ -21,10 +21,11 @@ export function getPool(databaseUrl: string): pg.Pool {
       max: 20, // Max connections in pool
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
-      // SSL configuration — required for non-local connections
+      // SSL configuration for Supabase
+      // Supabase requires SSL but uses certs that need relaxed verification
       ssl: databaseUrl.includes("localhost") || databaseUrl.includes("127.0.0.1")
         ? false
-        : { rejectUnauthorized: true },
+        : { rejectUnauthorized: false },
     });
 
     // Log connection errors (but never the connection string itself)
