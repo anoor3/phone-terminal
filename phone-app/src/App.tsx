@@ -26,6 +26,12 @@ export function App() {
     setState('connected');
   }, []);
 
+  const handlePairedDirect = useCallback((ws: WebSocket, sid: string) => {
+    wsRef.current = ws;
+    setSessionId(sid);
+    setState('connected');
+  }, []);
+
   const handleDisconnected = useCallback((reason: string) => {
     setDisconnectReason(reason);
     setState('disconnected');
@@ -37,7 +43,7 @@ export function App() {
 
   switch (state) {
     case 'claim':
-      return <ClaimPage onClaimed={handleClaimed} />;
+      return <ClaimPage onClaimed={handleClaimed} onPaired={handlePairedDirect} />;
     case 'code':
       return (
         <CodePage

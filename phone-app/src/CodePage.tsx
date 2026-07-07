@@ -14,6 +14,24 @@ export function CodePage({ ws, pairingId: _pairingId, initialCode, onPaired }: C
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    // Start countdown timer immediately if we have a code
+    if (code) {
+      timerRef.current = setInterval(() => {
+        setSecondsLeft((prev) => {
+          if (prev <= 1) {
+            if (timerRef.current) clearInterval(timerRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [code]);
+
+  useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const msg = JSON.parse(event.data as string) as {
         type: string;
@@ -25,16 +43,6 @@ export function CodePage({ ws, pairingId: _pairingId, initialCode, onPaired }: C
       switch (msg.type) {
         case 'code_challenge':
           setCode(msg.code ?? '');
-          // Start countdown timer
-          timerRef.current = setInterval(() => {
-            setSecondsLeft((prev) => {
-              if (prev <= 1) {
-                if (timerRef.current) clearInterval(timerRef.current);
-                return 0;
-              }
-              return prev - 1;
-            });
-          }, 1000);
           break;
         case 'code_valid':
         case 'paired':

@@ -6,73 +6,69 @@ const WS_URL = import.meta.env.VITE_WS_URL ?? `wss://${window.location.host}/ws`
 
 interface ClaimPageProps {
   onClaimed: (ws: WebSocket, pairingId: string, code: string) => void;
+  onPaired: (ws: WebSocket, sessionId: string) => void;
 }
 
-export function ClaimPage({ onClaimed }: ClaimPageProps) {
+export function ClaimPage({ onClaimed, onPaired }: ClaimPageProps) {
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState('Connecting...');
 
   useEffect(() => {
-    // Extract pairingId from pathname: /p/{pairingId}
     const pathParts = window.location.pathname.split('/');
     const pIdx = pathParts.indexOf('p');
     const pairingId = pIdx !== -1 ? pathParts[pIdx + 1] : undefined;
-
-    // Extract pairingToken from URL fragment (never sent to server in HTTP)
-    const pairingToken = window.location.hash.slice(1); // remove leading '#'
+    const pairingToken = window.location.hash.slice(1);
 
     if (!pairingId || !pairingToken) {
       setError('Invalid pairing link. Missing pairing ID or token.');
-      setLoading(false);
       return;
     }
 
     const ws = new WebSocket(WS_URL);
+    let claimed = false;
+    let code = '';
 
     ws.onopen = () => {
-      ws.send(JSON.stringify({
-        type: 'phone_claim',
-        pairingId,
-        pairingToken,
-      }));
+      ws.send(JSON.stringify({ type: 'phone_claim', pairingId, pairingToken }));
     };
 
     ws.onmessage = async (event) => {
-      const msg = JSON.parse(event.data as string) as { type: string; error?: string; code?: string };
+      const msg = JSON.parse(event.data as string) as Record<string, unknown>;
+      const type = msg['type'] as string;
 
-      if (msg.type === 'phone_claim_ack') {
-        // Generate ECDSA keypair on successful claim
+      if (type === 'phone_claim_ack') {
+        setStatus('Pairing with laptop...');
         await generateKeypair();
-        // Don't transition yet — wait for code_challenge so we don't miss it
-      } else if (msg.type === 'code_challenge') {
-        // Code arrived — now transition with the code included
-        onClaimed(ws, pairingId, msg.code ?? '');
-      } else if (msg.type === 'error') {
-        setError(msg.error ?? 'Pairing failed. Token may be expired or already claimed.');
-        setLoading(false);
+        claimed = true;
+      } else if (type === 'code_challenge') {
+        code = msg['code'] as string ?? '';
+        if (claimed) {
+          onClaimed(ws, pairingId, code);
+        }
+      } else if (type === 'code_valid' || type === 'paired') {
+        // If paired event arrives while still on this page, handle it
+        const sessionId = msg['sessionId'] as string ?? '';
+        onPaired(ws, sessionId);
+      } else if (type === 'error') {
+        setError(msg['error'] as string ?? 'Pairing failed.');
         ws.close();
       }
     };
 
     ws.onerror = () => {
       setError('Connection failed. Unable to reach server.');
-      setLoading(false);
     };
 
-    ws.onclose = (event) => {
-      if (!event.wasClean && loading) {
+    ws.onclose = () => {
+      if (!claimed) {
         setError('Connection closed unexpectedly.');
-        setLoading(false);
       }
     };
 
     return () => {
-      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-        ws.close();
-      }
+      // Don't close WS on unmount — it's being passed to the next page
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [onClaimed, onPaired]);
 
   if (error) {
     return (
@@ -88,20 +84,14 @@ export function ClaimPage({ onClaimed }: ClaimPageProps) {
     <div style={{ padding: '2rem', textAlign: 'center' }}>
       <div
         style={{
-          width: '48px',
-          height: '48px',
-          border: '4px solid #e2e8f0',
-          borderTopColor: '#3182ce',
-          borderRadius: '50%',
-          margin: '2rem auto',
+          width: '48px', height: '48px',
+          border: '4px solid #e2e8f0', borderTopColor: '#3182ce',
+          borderRadius: '50%', margin: '2rem auto',
           animation: 'spin 1s linear infinite',
         }}
-        role="status"
-        aria-label="Connecting"
       />
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <h1 style={{ marginBottom: '0.5rem' }}>Connecting…</h1>
-      <p style={{ color: '#666' }}>Pairing with your laptop</p>
+      <h1 style={{ marginBottom: '0.5rem' }}>{status}</h1>
     </div>
   );
 }
