@@ -22,7 +22,6 @@
  * - All messages are size-limited (16KB from WS handler)
  */
 
-import { createVerify } from "node:crypto";
 import type { WebSocket } from "@fastify/websocket";
 import type pg from "pg";
 import { SocketRegistry } from "./handler.js";
@@ -66,27 +65,30 @@ export async function verifySignature(
   }
 ): Promise<boolean> {
   try {
-    // Import the public key
-    const keyObject = await import("node:crypto").then((crypto) =>
-      crypto.createPublicKey({
-        key: publicKeyJwk as Record<string, unknown>,
-        format: "jwk",
-      })
-    );
+    const { createPublicKey, verify } = await import("node:crypto");
 
-    // Reconstruct the signed data
+    // Import the public key
+    const keyObject = createPublicKey({
+      key: publicKeyJwk as Record<string, unknown> & { kty: string },
+      format: "jwk",
+    });
+
+    // Reconstruct the signed data (must match exactly what phone signs)
     const payloadStr = typeof message.payload === "string"
       ? message.payload
       : JSON.stringify(message.payload);
     const signedData = `${message.sessionId}|${message.seq}|${message.ts}|${message.type}|${payloadStr}`;
 
-    // Verify signature
-    const verify = createVerify("SHA256");
-    verify.update(signedData);
-    verify.end();
-
     const sigBuffer = Buffer.from(message.sig, "base64url");
-    return verify.verify(keyObject, sigBuffer);
+
+    // WebCrypto ECDSA produces IEEE P1363 format (r||s, 64 bytes for P-256)
+    // Node.js verify() with dsaEncoding: 'ieee-p1363' handles this directly
+    return verify(
+      "SHA256",
+      Buffer.from(signedData),
+      { key: keyObject, dsaEncoding: "ieee-p1363" },
+      sigBuffer
+    );
   } catch {
     return false;
   }

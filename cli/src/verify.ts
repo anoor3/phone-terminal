@@ -22,7 +22,7 @@
  * - Sequence numbers monotonically increasing (anti-replay for reordered msgs)
  */
 
-import { createPublicKey, createVerify } from "node:crypto";
+import { createPublicKey, verify as cryptoVerify } from "node:crypto";
 import type { SessionState } from "./session.js";
 
 const TIMESTAMP_TOLERANCE_MS = 30_000; // ±30 seconds
@@ -104,13 +104,15 @@ function verifyEcdsaSignature(
       : JSON.stringify(envelope.payload);
     const signedData = `${envelope.sessionId}|${envelope.seq}|${envelope.ts}|${envelope.type}|${payloadStr}`;
 
-    // Verify signature (SHA-256 with ECDSA P-256)
-    const verify = createVerify("SHA256");
-    verify.update(signedData);
-    verify.end();
-
     const sigBuffer = Buffer.from(envelope.sig, "base64url");
-    return verify.verify(keyObject, sigBuffer);
+
+    // WebCrypto ECDSA produces IEEE P1363 format (r||s, 64 bytes for P-256)
+    return cryptoVerify(
+      "SHA256",
+      Buffer.from(signedData),
+      { key: keyObject, dsaEncoding: "ieee-p1363" },
+      sigBuffer
+    );
   } catch {
     // Any crypto error = invalid
     return false;
