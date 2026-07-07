@@ -35,6 +35,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
   const seqRef = useRef(0);
   const lastSizeRef = useRef<TerminalSize | null>(null);
   const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const keyboardOpenRef = useRef(false);
   const [input, setInput] = useState('');
   const [status, setStatus] = useState('Connected');
   const [focusMode, setFocusMode] = useState(false);
@@ -74,6 +75,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     const term = termRef.current;
     const fitAddon = fitAddonRef.current;
     if (!term || !fitAddon) return;
+    if (keyboardOpenRef.current) return;
 
     fitAddon.fit();
     const nextSize = { cols: term.cols, rows: term.rows };
@@ -94,6 +96,23 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
     resizeTimerRef.current = setTimeout(syncTerminalSize, 80);
   }, [syncTerminalSize]);
+
+  const syncVisualViewport = useCallback(() => {
+    const shell = shellRef.current;
+    const viewport = window.visualViewport;
+    const layoutHeight = window.innerHeight;
+    const visualHeight = viewport?.height ?? layoutHeight;
+    keyboardOpenRef.current = visualHeight < layoutHeight - 120;
+
+    if (shell) {
+      shell.style.setProperty('--visual-height', `${visualHeight}px`);
+      shell.style.setProperty('--visual-offset-top', `${viewport?.offsetTop ?? 0}px`);
+    }
+
+    if (!keyboardOpenRef.current) {
+      scheduleResize();
+    }
+  }, [scheduleResize]);
 
   useEffect(() => {
     if (!terminalRef.current) return;
@@ -131,21 +150,24 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
 
     const resizeObserver = new ResizeObserver(scheduleResize);
     resizeObserver.observe(terminalRef.current);
-    window.addEventListener('resize', scheduleResize);
-    window.addEventListener('orientationchange', scheduleResize);
-    window.visualViewport?.addEventListener('resize', scheduleResize);
+    syncVisualViewport();
+    window.addEventListener('resize', syncVisualViewport);
+    window.addEventListener('orientationchange', syncVisualViewport);
+    window.visualViewport?.addEventListener('resize', syncVisualViewport);
+    window.visualViewport?.addEventListener('scroll', syncVisualViewport);
 
     return () => {
       if (resizeTimerRef.current) clearTimeout(resizeTimerRef.current);
       resizeObserver.disconnect();
-      window.removeEventListener('resize', scheduleResize);
-      window.removeEventListener('orientationchange', scheduleResize);
-      window.visualViewport?.removeEventListener('resize', scheduleResize);
+      window.removeEventListener('resize', syncVisualViewport);
+      window.removeEventListener('orientationchange', syncVisualViewport);
+      window.visualViewport?.removeEventListener('resize', syncVisualViewport);
+      window.visualViewport?.removeEventListener('scroll', syncVisualViewport);
       fitAddonRef.current = null;
       termRef.current = null;
       term.dispose();
     };
-  }, [scheduleResize]);
+  }, [scheduleResize, syncVisualViewport]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -199,7 +221,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
   }, [sendEnvelope]);
 
   const sendCommand = async (command: string) => {
-    await sendInput(`${command}\n`, 'Command sent');
+    await sendInput(`${command}\r`, 'Command sent');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -207,6 +229,9 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     if (!input.trim()) return;
     void sendCommand(input);
     setInput('');
+    requestAnimationFrame(() => {
+      terminalRef.current?.scrollIntoView({ block: 'nearest' });
+    });
   };
 
   const handleDisconnect = async () => {
