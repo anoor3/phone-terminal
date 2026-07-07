@@ -96,11 +96,6 @@ export function CodePage({ ws, pairingId: _pairingId, initialCode, onPaired }: C
     );
   }
 
-  // Calculate progress for visual ring (0 to 1)
-  const progress = secondsLeft / 120;
-  const circumference = 2 * Math.PI * 54; // radius = 54
-  const strokeDashoffset = circumference * (1 - progress);
-
   return (
     <div className="code-page">
       <div className="code-panel">
@@ -109,41 +104,15 @@ export function CodePage({ ws, pairingId: _pairingId, initialCode, onPaired }: C
           Pairing Active
         </div>
 
-        <div className="code-ring">
-          <svg width="132" height="132" viewBox="0 0 120 120" aria-hidden="true">
-          <circle
-            cx="60"
-            cy="60"
-            r="54"
-            fill="none"
-            stroke="#1d2a3a"
-            strokeWidth="6"
-          />
-          <circle
-            cx="60"
-            cy="60"
-            r="54"
-            fill="none"
-            stroke={secondsLeft > 30 ? '#f1c45b' : '#ff6578'}
-            strokeWidth="6"
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
-            strokeLinecap="round"
-            transform="rotate(-90 60 60)"
-            style={{ transition: 'stroke-dashoffset 1s linear' }}
-          />
-        </svg>
-          <div className="code-time">{secondsLeft}s</div>
-        </div>
-
         <h1 className="code-title">Enter This Code</h1>
         <div className="verification-code" aria-label={`Verification code: ${code.split('').join(' ')}`}>
-          {code.split('').map((digit, index) => (
-            <span className="code-digit" key={`${digit}-${index}`}>{digit}</span>
-          ))}
+          {code.slice(0, 3)} {code.slice(3)}
         </div>
 
-        <p className="code-copy">Type the 6-digit code into your laptop terminal to finish pairing.</p>
+        <p className="code-copy">Type this into your laptop terminal.</p>
+        <p className={`code-time ${secondsLeft <= 30 ? 'is-expiring' : ''}`}>
+          Expires in {secondsLeft}s
+        </p>
       </div>
     </div>
   );
