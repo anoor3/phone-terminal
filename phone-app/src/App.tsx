@@ -11,11 +11,13 @@ export function App() {
   const [disconnectReason, setDisconnectReason] = useState('');
   const [sessionId, setSessionId] = useState('');
   const [pairingId, setPairingId] = useState('');
+  const [initialCode, setInitialCode] = useState('');
   const wsRef = useRef<WebSocket | null>(null);
 
-  const handleClaimed = useCallback((ws: WebSocket, id: string) => {
+  const handleClaimed = useCallback((ws: WebSocket, id: string, code: string) => {
     wsRef.current = ws;
     setPairingId(id);
+    setInitialCode(code);
     setState('code');
   }, []);
 
@@ -41,6 +43,7 @@ export function App() {
         <CodePage
           ws={wsRef.current!}
           pairingId={pairingId}
+          initialCode={initialCode}
           onPaired={handlePaired}
         />
       );

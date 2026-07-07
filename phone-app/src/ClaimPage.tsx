@@ -5,7 +5,7 @@ import { generateKeypair } from './crypto';
 const WS_URL = import.meta.env.VITE_WS_URL ?? `wss://${window.location.host}/ws`;
 
 interface ClaimPageProps {
-  onClaimed: (ws: WebSocket, pairingId: string) => void;
+  onClaimed: (ws: WebSocket, pairingId: string, code: string) => void;
 }
 
 export function ClaimPage({ onClaimed }: ClaimPageProps) {
@@ -46,7 +46,7 @@ export function ClaimPage({ onClaimed }: ClaimPageProps) {
         // Don't transition yet — wait for code_challenge so we don't miss it
       } else if (msg.type === 'code_challenge') {
         // Code arrived — now transition with the code included
-        onClaimed(ws, pairingId);
+        onClaimed(ws, pairingId, msg.code ?? '');
       } else if (msg.type === 'error') {
         setError(msg.error ?? 'Pairing failed. Token may be expired or already claimed.');
         setLoading(false);

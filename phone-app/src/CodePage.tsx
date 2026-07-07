@@ -3,11 +3,12 @@ import { useEffect, useState, useRef } from 'react';
 interface CodePageProps {
   ws: WebSocket;
   pairingId: string;
+  initialCode: string;
   onPaired: (sessionId: string) => void;
 }
 
-export function CodePage({ ws, pairingId: _pairingId, onPaired }: CodePageProps) {
-  const [code, setCode] = useState<string | null>(null);
+export function CodePage({ ws, pairingId: _pairingId, initialCode, onPaired }: CodePageProps) {
+  const [code, setCode] = useState<string | null>(initialCode || null);
   const [error, setError] = useState<string | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(120);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
