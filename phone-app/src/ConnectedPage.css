@@ -213,6 +213,37 @@
   flex: 0 0 auto;
 }
 
+.mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.24rem;
+  margin-bottom: 0.5rem;
+  padding: 0.22rem;
+  border: 1px solid rgba(43, 59, 80, 0.8);
+  border-radius: 999px;
+  background: #080d13;
+}
+
+.mode-option {
+  min-height: 2rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #8fa3b8;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 850;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mode-option.active {
+  background: #172235;
+  color: #eef6ff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
 .composer-actions {
   display: flex;
   gap: 0.46rem;

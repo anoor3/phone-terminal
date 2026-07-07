@@ -16,6 +16,8 @@ interface TerminalSize {
   rows: number;
 }
 
+type InputMode = 'chat' | 'raw';
+
 const CONTROL_KEYS = [
   { label: 'Ctrl+C', payload: '\x03' },
   { label: 'Esc', payload: '\x1b' },
@@ -33,6 +35,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
   const termRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
   const seqRef = useRef(0);
+  const sendQueueRef = useRef<Promise<boolean>>(Promise.resolve(true));
   const lastSizeRef = useRef<TerminalSize | null>(null);
   const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keyboardOpenRef = useRef(false);
@@ -40,6 +43,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
   const [status, setStatus] = useState('Connected');
   const [focusMode, setFocusMode] = useState(false);
   const [controlsOpen, setControlsOpen] = useState(false);
+  const [inputMode, setInputMode] = useState<InputMode>('chat');
   const [hostname] = useState(() => {
     try {
       const url = new URL(ws.url);
@@ -49,27 +53,32 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     }
   });
 
-  const sendEnvelope = useCallback(async (type: string, payload: unknown) => {
-    const keypair = await getKeypair();
-    if (!keypair) {
-      setStatus('Missing signing key');
-      return false;
-    }
+  const sendEnvelope = useCallback((type: string, payload: unknown) => {
+    const task = sendQueueRef.current.then(async () => {
+      const keypair = await getKeypair();
+      if (!keypair) {
+        setStatus('Missing signing key');
+        return false;
+      }
 
-    const seq = ++seqRef.current;
-    const ts = Date.now();
-    const sig = await sign(keypair, sessionId, seq, ts, type, payload);
+      const seq = ++seqRef.current;
+      const ts = Date.now();
+      const sig = await sign(keypair, sessionId, seq, ts, type, payload);
 
-    ws.send(JSON.stringify({
-      type,
-      sessionId,
-      seq,
-      ts,
-      payload,
-      sig,
-    }));
+      ws.send(JSON.stringify({
+        type,
+        sessionId,
+        seq,
+        ts,
+        payload,
+        sig,
+      }));
 
-    return true;
+      return true;
+    });
+
+    sendQueueRef.current = task.catch(() => false);
+    return task;
   }, [sessionId, ws]);
 
   const syncTerminalSize = useCallback(() => {
@@ -227,6 +236,10 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (inputMode === 'raw') {
+      void sendInput('\r', 'Enter');
+      return;
+    }
     if (!input.trim()) return;
     void sendCommand(input);
     setInput('');
@@ -252,6 +265,61 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     setFocusMode(true);
     await shellRef.current?.requestFullscreen?.().catch(() => undefined);
     scheduleResize();
+  };
+
+  const handleRawBeforeInput = (e: React.FormEvent<HTMLInputElement>) => {
+    if (inputMode !== 'raw') return;
+    const nativeEvent = e.nativeEvent as InputEvent;
+    e.preventDefault();
+
+    if (nativeEvent.inputType === 'insertText' && nativeEvent.data) {
+      void sendInput(nativeEvent.data, 'Raw');
+      return;
+    }
+
+    if (nativeEvent.inputType === 'insertLineBreak') {
+      void sendInput('\r', 'Enter');
+      return;
+    }
+
+    if (nativeEvent.inputType === 'deleteContentBackward') {
+      void sendInput('\x7f', 'Backspace');
+    }
+  };
+
+  const handleRawKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (inputMode !== 'raw') return;
+
+    const keyPayloads: Record<string, string> = {
+      Enter: '\r',
+      Backspace: '\x7f',
+      Escape: '\x1b',
+      Tab: '\t',
+      ArrowUp: '\x1b[A',
+      ArrowDown: '\x1b[B',
+      ArrowRight: '\x1b[C',
+      ArrowLeft: '\x1b[D',
+    };
+
+    if (e.ctrlKey && e.key.toLowerCase() === 'c') {
+      e.preventDefault();
+      void sendInput('\x03', 'Ctrl+C');
+      return;
+    }
+
+    const payload = keyPayloads[e.key];
+    if (payload) {
+      e.preventDefault();
+      void sendInput(payload, e.key);
+    }
+  };
+
+  const handleRawPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    if (inputMode !== 'raw') return;
+    const pasted = e.clipboardData.getData('text');
+    if (!pasted) return;
+    e.preventDefault();
+    void sendInput(pasted, 'Paste');
   };
 
   return (
@@ -302,6 +370,30 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
       </main>
 
       <section className="composer-panel" aria-label="Command composer">
+        <div className="mode-toggle" role="tablist" aria-label="Input mode">
+          <button
+            className={`mode-option${inputMode === 'chat' ? ' active' : ''}`}
+            type="button"
+            onClick={() => setInputMode('chat')}
+            role="tab"
+            aria-selected={inputMode === 'chat'}
+          >
+            Chat
+          </button>
+          <button
+            className={`mode-option${inputMode === 'raw' ? ' active' : ''}`}
+            type="button"
+            onClick={() => {
+              setInput('');
+              setInputMode('raw');
+            }}
+            role="tab"
+            aria-selected={inputMode === 'raw'}
+          >
+            Raw
+          </button>
+        </div>
+
         <div className="composer-actions">
           <button
             className="quick-action danger-action"
@@ -346,9 +438,14 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
           <span className="prompt-marker" aria-hidden="true">$</span>
           <input
             type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type a command..."
+            value={inputMode === 'raw' ? '' : input}
+            onBeforeInput={handleRawBeforeInput}
+            onKeyDown={handleRawKeyDown}
+            onPaste={handleRawPaste}
+            onChange={(e) => {
+              if (inputMode === 'chat') setInput(e.target.value);
+            }}
+            placeholder={inputMode === 'raw' ? 'Raw mode: keys send instantly...' : 'Type a command...'}
             autoFocus
             className="command-input"
             aria-label="Command input"
