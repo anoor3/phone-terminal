@@ -219,9 +219,9 @@ program
   .description("View audit log for a session")
   .requiredOption("--session <id>", "Session ID to view")
   .option("--export <format>", "Export format (json)")
-  .action(async (_opts: { session: string; export?: string }) => {
-    // Implemented in task 24
-    console.log("audit command — not yet implemented");
+  .action(async (opts: { session: string; export?: string }) => {
+    const { executeAudit } = await import("./audit.js");
+    await executeAudit(opts.session, opts.export);
   });
 
 program.parse();
