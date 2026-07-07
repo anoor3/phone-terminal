@@ -8,5 +8,18 @@
     "dev": "tsx watch src/server.ts",
     "lint": "echo 'lint not yet configured'",
     "test": "echo 'tests not yet configured'"
+  },
+  "dependencies": {
+    "@fastify/rate-limit": "10.2.1",
+    "@fastify/websocket": "11.0.2",
+    "fastify": "5.10.0",
+    "ioredis": "5.6.1",
+    "pg": "8.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.21",
+    "@types/pg": "8.11.14",
+    "tsx": "4.19.4",
+    "typescript": "5.8.3"
   }
 }
