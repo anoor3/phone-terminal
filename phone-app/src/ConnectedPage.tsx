@@ -39,6 +39,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
   const [input, setInput] = useState('');
   const [status, setStatus] = useState('Connected');
   const [focusMode, setFocusMode] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(false);
   const [hostname] = useState(() => {
     try {
       const url = new URL(ws.url);
@@ -300,37 +301,66 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
         <div ref={terminalRef} className="terminal-canvas" />
       </main>
 
-      <div className="terminal-controls" aria-label="Terminal control keys">
-        {CONTROL_KEYS.map((key) => (
+      <section className="composer-panel" aria-label="Command composer">
+        <div className="composer-actions">
           <button
-            key={key.label}
-            className="control-key"
+            className="quick-action danger-action"
             type="button"
-            onClick={() => void sendInput(key.payload, key.label)}
+            onClick={() => void sendInput('\x03', 'Ctrl+C')}
           >
-            {key.label}
+            Ctrl+C
           </button>
-        ))}
-      </div>
+          <button
+            className="quick-action"
+            type="button"
+            onClick={() => setControlsOpen((open) => !open)}
+            aria-expanded={controlsOpen}
+          >
+            {controlsOpen ? 'Hide Keys' : 'Keys'}
+          </button>
+          <button
+            className="quick-action"
+            type="button"
+            onClick={() => termRef.current?.clear()}
+          >
+            Clear
+          </button>
+        </div>
 
-      <form className="command-form" onSubmit={handleSubmit}>
-        <span className="prompt-marker" aria-hidden="true">$</span>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Enter command..."
-          autoFocus
-          className="command-input"
-          aria-label="Command input"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-        />
-        <button type="submit" className="send-button">
-          Send
-        </button>
-      </form>
+        {controlsOpen && (
+          <div className="terminal-controls" aria-label="Terminal control keys">
+            {CONTROL_KEYS.filter((key) => key.label !== 'Ctrl+C').map((key) => (
+              <button
+                key={key.label}
+                className="control-key"
+                type="button"
+                onClick={() => void sendInput(key.payload, key.label)}
+              >
+                {key.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <form className="command-form" onSubmit={handleSubmit}>
+          <span className="prompt-marker" aria-hidden="true">$</span>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type a command..."
+            autoFocus
+            className="command-input"
+            aria-label="Command input"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+          <button type="submit" className="send-button">
+            Send
+          </button>
+        </form>
+      </section>
     </div>
   );
 }

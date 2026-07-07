@@ -7,6 +7,7 @@
   --muted: #8fa3b8;
   --green: #22c55e;
   --blue: #2f81f7;
+  --blue-2: #57a6ff;
   --red-bg: #2a1117;
   --red-line: #61202d;
   --red-text: #ffc2ca;
@@ -21,7 +22,7 @@
   width: 100%;
   height: var(--visual-height);
   min-height: 0;
-  padding-bottom: var(--browser-bottom-inset);
+  padding-bottom: max(var(--browser-bottom-inset), env(safe-area-inset-bottom));
   overflow: hidden;
   background: var(--bg);
   color: var(--text);
@@ -186,58 +187,106 @@
 }
 
 .terminal-controls {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.42rem;
-  overflow-x: auto;
-  padding: 0.38rem 0.55rem;
-  border-top: 1px solid var(--line);
-  background: var(--panel);
-  scrollbar-width: none;
+  margin-bottom: 0.5rem;
+  padding: 0.48rem;
+  border: 1px solid rgba(43, 59, 80, 0.85);
+  border-radius: 0.85rem;
+  background: rgba(8, 13, 19, 0.92);
   flex: 0 0 auto;
 }
 
+.composer-actions::-webkit-scrollbar,
 .terminal-controls::-webkit-scrollbar {
   display: none;
 }
 
+.composer-panel {
+  padding: 0.52rem 0.62rem max(0.62rem, env(safe-area-inset-bottom));
+  border-top: 1px solid rgba(34, 48, 68, 0.9);
+  background:
+    linear-gradient(180deg, rgba(9, 13, 18, 0.7) 0%, rgba(9, 13, 18, 0.98) 22%),
+    var(--panel);
+  transform: translateZ(0);
+  flex: 0 0 auto;
+}
+
+.composer-actions {
+  display: flex;
+  gap: 0.46rem;
+  margin-bottom: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.quick-action {
+  min-height: 2.15rem;
+  border: 1px solid #2b3b50;
+  border-radius: 999px;
+  background: #101825;
+  color: #d8e3ef;
+  padding: 0 0.82rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 850;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.danger-action {
+  border-color: #5b2733;
+  background: #251117;
+  color: #ffbdc7;
+}
+
 .control-key {
   border: 1px solid #2b3b50;
-  background: #101825;
+  border-radius: 0.62rem;
+  background: #111b29;
   color: #cdd8e4;
-  padding: 0 0.66rem;
+  min-height: 2.25rem;
+  padding: 0 0.4rem;
   font-family: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
-  font-size: 0.76rem;
+  font-size: 0.74rem;
+  font-weight: 850;
   white-space: nowrap;
-  flex: 0 0 auto;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .command-form {
   display: flex;
   align-items: center;
-  gap: 0.58rem;
-  padding: 0.52rem 0.62rem max(0.58rem, env(safe-area-inset-bottom));
-  border-top: 1px solid var(--line);
-  background: var(--panel);
-  transform: translateZ(0);
-  flex: 0 0 auto;
+  gap: 0.54rem;
+  padding: 0.38rem;
+  border: 1px solid #2d3d53;
+  border-radius: 1.05rem;
+  background: #080d13;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .prompt-marker {
   color: var(--green);
   font-family: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
   font-size: 1rem;
+  padding-left: 0.45rem;
   flex: 0 0 auto;
 }
 
 .command-input {
   min-width: 0;
-  min-height: 2.72rem;
-  border: 1px solid #2d3d53;
-  border-radius: 0.62rem;
+  min-height: 2.52rem;
+  border: 0;
+  border-radius: 0.74rem;
   outline: none;
-  background: #080d13;
+  background: transparent;
   color: #eef6ff;
-  padding: 0 0.85rem;
+  padding: 0 0.36rem;
   font-family: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace;
   font-size: 16px;
   flex: 1 1 auto;
@@ -249,10 +298,13 @@
 
 .send-button {
   border: 1px solid #4091ff;
-  background: var(--blue);
+  border-radius: 0.78rem;
+  background: linear-gradient(180deg, var(--blue-2), var(--blue));
   color: #fff;
-  padding: 0 1rem;
+  min-height: 2.52rem;
+  padding: 0 0.94rem;
   font-size: 0.92rem;
+  box-shadow: 0 8px 22px rgba(47, 129, 247, 0.28);
   flex: 0 0 auto;
 }
 
@@ -293,5 +345,13 @@
 
   .icon-button {
     width: 2.35rem;
+  }
+
+  .terminal-controls {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .quick-action {
+    padding: 0 0.72rem;
   }
 }
