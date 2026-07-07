@@ -19,7 +19,7 @@
 import type { FastifyInstance } from "fastify";
 import type { WebSocket } from "@fastify/websocket";
 import type { IncomingMessage } from "node:http";
-import type { PairingStore } from "../redis/pairing-store.js";
+import type { PairingStore } from "../db/pairing-store.js";
 
 /** Track WS connections per IP for rate limiting */
 const wsConnectionsPerIp = new Map<string, { count: number; resetAt: number }>();

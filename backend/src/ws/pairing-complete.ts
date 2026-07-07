@@ -20,7 +20,7 @@
 import { randomBytes } from "node:crypto";
 import type { WebSocket } from "@fastify/websocket";
 import type pg from "pg";
-import type { PairingStore } from "../redis/pairing-store.js";
+import type { PairingStore } from "../db/pairing-store.js";
 import { SocketRegistry } from "./handler.js";
 import { wsSend } from "./router.js";
 

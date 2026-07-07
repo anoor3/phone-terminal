@@ -19,7 +19,7 @@
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { randomBytes } from "node:crypto";
-import type { PairingStore } from "../redis/pairing-store.js";
+import type { PairingStore } from "../db/pairing-store.js";
 
 /** 32 random bytes → base64url string (URL-safe, no padding) */
 function generateSecureToken(): string {

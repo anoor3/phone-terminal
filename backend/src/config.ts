@@ -1,10 +1,12 @@
 /**
- * Configuration validation for the phone-terminal backend.
+ * Configuration for the phone-terminal backend.
  *
- * Security notes:
- * - TLS is mandatory (no ws:// path exists)
- * - ALLOWED_ORIGINS prevents cross-origin WS hijacking
- * - Redis/Postgres connection strings are never logged
+ * Requires:
+ * - DATABASE_URL (Supabase Postgres connection string)
+ * - TLS cert/key for HTTPS/WSS
+ * - ALLOWED_ORIGINS for WebSocket Origin validation
+ *
+ * Redis is NOT required — pairing state lives in Postgres.
  */
 
 export interface Config {
@@ -13,7 +15,6 @@ export interface Config {
   tlsCertPath: string;
   tlsKeyPath: string;
   allowedOrigins: string[];
-  redisUrl: string;
   databaseUrl: string;
 }
 
@@ -23,13 +24,11 @@ export function validateConfig(): Config {
   const tlsCertPath = process.env["TLS_CERT_PATH"];
   const tlsKeyPath = process.env["TLS_KEY_PATH"];
   const allowedOriginsRaw = process.env["ALLOWED_ORIGINS"];
-  const redisUrl = process.env["REDIS_URL"];
   const databaseUrl = process.env["DATABASE_URL"];
 
   if (!tlsCertPath) missing.push("TLS_CERT_PATH");
   if (!tlsKeyPath) missing.push("TLS_KEY_PATH");
   if (!allowedOriginsRaw) missing.push("ALLOWED_ORIGINS");
-  if (!redisUrl) missing.push("REDIS_URL");
   if (!databaseUrl) missing.push("DATABASE_URL");
 
   if (missing.length > 0) {
@@ -55,7 +54,6 @@ export function validateConfig(): Config {
     tlsCertPath: tlsCertPath!,
     tlsKeyPath: tlsKeyPath!,
     allowedOrigins,
-    redisUrl: redisUrl!,
     databaseUrl: databaseUrl!,
   };
 }

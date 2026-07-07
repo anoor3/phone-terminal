@@ -24,7 +24,7 @@
  */
 
 import type { WebSocket } from "@fastify/websocket";
-import type { PairingStore } from "../redis/pairing-store.js";
+import type { PairingStore } from "../db/pairing-store.js";
 import { SocketRegistry } from "./handler.js";
 
 const MAX_WS_MESSAGE_SIZE = 16 * 1024; // 16KB — same as HTTP body limit
