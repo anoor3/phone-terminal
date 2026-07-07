@@ -60,9 +60,17 @@ export function ClaimPage({ onClaimed, onPaired }: ClaimPageProps) {
           // Buffer it — will be used once keypair is ready
           bufferedCode = code;
         }
-      } else if (type === 'code_valid' || type === 'paired') {
+      } else if (type === 'code_valid') {
+        setStatus('Code accepted. Connecting...');
+      } else if (type === 'paired') {
+        const sessionId = msg['sessionId'];
+        if (typeof sessionId !== 'string' || !sessionId) {
+          setError('Pairing completed without a session. Run connect again.');
+          ws.close();
+          return;
+        }
         transitioned = true;
-        onPaired(ws, msg['sessionId'] as string ?? '');
+        onPaired(ws, sessionId);
       } else if (type === 'error') {
         setError(msg['error'] as string ?? 'Pairing failed.');
         ws.close();

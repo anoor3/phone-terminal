@@ -45,9 +45,15 @@ export function CodePage({ ws, pairingId: _pairingId, initialCode, onPaired }: C
           setCode(msg.code ?? '');
           break;
         case 'code_valid':
+          if (timerRef.current) clearInterval(timerRef.current);
+          break;
         case 'paired':
           if (timerRef.current) clearInterval(timerRef.current);
-          onPaired(msg.sessionId ?? '');
+          if (msg.sessionId) {
+            onPaired(msg.sessionId);
+          } else {
+            setError('Pairing completed without a session. Run connect again.');
+          }
           break;
         case 'code_locked':
           if (timerRef.current) clearInterval(timerRef.current);

@@ -123,9 +123,10 @@ export async function sign(
   seq: number,
   ts: number,
   type: string,
-  payload: string,
+  payload: unknown,
 ): Promise<string> {
-  const message = `${sessionId}|${seq}|${ts}|${type}|${payload}`;
+  const payloadString = typeof payload === 'string' ? payload : JSON.stringify(payload);
+  const message = `${sessionId}|${seq}|${ts}|${type}|${payloadString}`;
   const encoded = new TextEncoder().encode(message);
 
   const signature = await crypto.subtle.sign(
