@@ -32,27 +32,21 @@ export interface ConnectConfig {
 }
 
 function loadConnectConfig(): ConnectConfig {
-  const apiBaseUrl = process.env["PHONE_TERMINAL_API_URL"] ?? "";
-  const wsUrl = process.env["PHONE_TERMINAL_WS_URL"] ?? "";
-  const pairingPageUrl = process.env["PHONE_TERMINAL_PAIRING_URL"] ?? "";
-
-  if (!apiBaseUrl || !wsUrl || !pairingPageUrl) {
-    console.error("Required environment variables:");
-    console.error("  PHONE_TERMINAL_API_URL   — Backend API (e.g. https://localhost:3001)");
-    console.error("  PHONE_TERMINAL_WS_URL    — Backend WS  (e.g. wss://localhost:3001/ws)");
-    console.error("  PHONE_TERMINAL_PAIRING_URL — Phone page (e.g. https://pair.yourapp.com/p)");
-    process.exit(1);
-  }
+  // Defaults point to production (phone-terminal.fly.dev)
+  // Override with env vars for local development
+  const apiBaseUrl = process.env["PHONE_TERMINAL_API_URL"] ?? "https://phone-terminal.fly.dev";
+  const wsUrl = process.env["PHONE_TERMINAL_WS_URL"] ?? "wss://phone-terminal.fly.dev/ws";
+  const pairingPageUrl = process.env["PHONE_TERMINAL_PAIRING_URL"] ?? "https://phone-terminal.fly.dev/p";
 
   // WSS only — no ws:// code path exists (per §10)
   if (!wsUrl.startsWith("wss://")) {
-    console.error("ERROR: PHONE_TERMINAL_WS_URL must use wss:// (no plaintext WebSocket allowed)");
+    console.error("ERROR: WebSocket URL must use wss:// (no plaintext WebSocket allowed)");
     process.exit(1);
   }
 
   // Enforce HTTPS for API
   if (!apiBaseUrl.startsWith("https://")) {
-    console.error("ERROR: PHONE_TERMINAL_API_URL must use https://");
+    console.error("ERROR: API URL must use https://");
     process.exit(1);
   }
 

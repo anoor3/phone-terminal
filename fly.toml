@@ -29,3 +29,6 @@ primary_region = "iad"  # US East - change if you want closer to you
   memory = "256mb"
   cpu_kind = "shared"
   cpus = 1
+
+[deploy]
+  strategy = "immediate"
