@@ -41,47 +41,95 @@ program
   .description("Start a new pairing session (generates QR code)")
   .action(async () => {
     const { executeConnect } = await import("./connect.js");
-    const { handleCodeSubmission } = await import("./code-submit.js");
     try {
       const session = await executeConnect();
       console.log(`  ✓ WebSocket connected, awaiting phone scan...`);
       console.log(`    Pairing ID: ${session.pairingId.slice(0, 8)}...\n`);
 
-      // Wait for phone to claim the pairing
-      await new Promise<void>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error("Pairing timed out — no phone scanned within 120s"));
-        }, 120_000);
+      const ws = session.ws;
 
-        session.ws.on("message", (data: Buffer | ArrayBuffer | Buffer[]) => {
+      // Single unified message handler for the entire pairing flow
+      const pairingResult = await new Promise<{ sessionId: string; deviceId: string; deviceLabel: string; publicKeyJwk: Record<string, unknown> }>(async (resolve, reject) => {
+        let phase: "waiting_phone" | "entering_code" | "waiting_paired" = "waiting_phone";
+        const timeout = setTimeout(() => reject(new Error("Pairing timed out (120s)")), 120_000);
+
+        const { createInterface } = await import("node:readline");
+        let rl: ReturnType<typeof createInterface> | null = null;
+
+        ws.on("message", (data: Buffer | ArrayBuffer | Buffer[]) => {
           const msg = JSON.parse(data.toString()) as Record<string, unknown>;
-          if (msg["type"] === "phone_claimed") {
+          const type = msg["type"] as string;
+
+          if (type === "phone_claimed" && phase === "waiting_phone") {
+            phase = "entering_code";
+            console.log("  📱 Phone connected! A verification code is on your phone.\n");
+
+            // Prompt for code
+            rl = createInterface({ input: process.stdin, output: process.stdout });
+            const askCode = (): void => {
+              rl!.question("  Enter the 6-digit code: ", (answer: string) => {
+                const code = answer.trim();
+                if (!/^\d{6}$/.test(code)) {
+                  console.log("  ⚠ Must be exactly 6 digits.\n");
+                  askCode();
+                  return;
+                }
+                ws.send(JSON.stringify({ type: "code_submit", pairingId: session.pairingId, code }));
+                phase = "waiting_paired";
+              });
+            };
+            askCode();
+          } else if (type === "code_invalid" && phase === "waiting_paired") {
+            const remaining = msg["remaining"] as number;
+            console.log(`  ✗ Invalid code. ${remaining} attempts left.\n`);
+            phase = "entering_code";
+            const askCode = (): void => {
+              rl!.question("  Enter the 6-digit code: ", (answer: string) => {
+                const code = answer.trim();
+                if (!/^\d{6}$/.test(code)) {
+                  console.log("  ⚠ Must be exactly 6 digits.\n");
+                  askCode();
+                  return;
+                }
+                ws.send(JSON.stringify({ type: "code_submit", pairingId: session.pairingId, code }));
+                phase = "waiting_paired";
+              });
+            };
+            askCode();
+          } else if (type === "code_locked") {
             clearTimeout(timeout);
-            console.log("  📱 Phone connected!\n");
-            resolve();
-          } else if (msg["type"] === "error") {
+            if (rl) rl.close();
+            reject(new Error("Max attempts exceeded. Run 'connect' again."));
+          } else if (type === "paired") {
             clearTimeout(timeout);
-            reject(new Error(msg["error"] as string));
+            if (rl) rl.close();
+            resolve({
+              sessionId: msg["sessionId"] as string,
+              deviceId: msg["deviceId"] as string,
+              deviceLabel: msg["deviceLabel"] as string,
+              publicKeyJwk: msg["publicKeyJwk"] as Record<string, unknown>,
+            });
+          } else if (type === "error") {
+            clearTimeout(timeout);
+            if (rl) rl.close();
+            reject(new Error(msg["error"] as string ?? "Unknown error"));
           }
         });
 
-        session.ws.on("close", () => {
+        ws.on("close", () => {
           clearTimeout(timeout);
+          if (rl) rl.close();
           reject(new Error("Connection closed"));
         });
       });
 
-      // Phone claimed — now handle code submission
-      const codeResult = await handleCodeSubmission(session.ws, session.pairingId);
-      if (!codeResult.success) {
-        console.error(`  Pairing failed: ${codeResult.error}`);
-        process.exit(1);
-      }
+      // Pairing complete!
+      console.log(`\n  ✓ PAIRED! Session: ${pairingResult.sessionId.slice(0, 8)}...`);
+      console.log(`    Device: ${pairingResult.deviceLabel}\n`);
+      console.log("  🎉 Phone is now connected to your terminal.\n");
 
-      // Wait for paired event
-      console.log("  Waiting for session to be established...\n");
       // Keep process alive
-      session.ws.on("close", () => {
+      ws.on("close", () => {
         console.log("  Session ended.");
         process.exit(0);
       });
