@@ -12,6 +12,22 @@
  */
 
 import { Command } from "commander";
+import type { SessionState } from "./session.js";
+
+/**
+ * Module-level active session state.
+ * Set by the connect flow when pairing completes.
+ * Read by disconnect/status commands.
+ */
+let activeSession: SessionState | null = null;
+
+export function setActiveSession(session: SessionState | null): void {
+  activeSession = session;
+}
+
+export function getActiveSession(): SessionState | null {
+  return activeSession;
+}
 
 const program = new Command();
 
@@ -27,8 +43,6 @@ program
     const { executeConnect } = await import("./connect.js");
     try {
       const session = await executeConnect();
-      // Session is now active — hand off to the pairing flow handler
-      // (code submission, paired event, etc. — implemented in tasks 16-17)
       console.log(`  ✓ WebSocket connected, awaiting phone scan...`);
       console.log(`    Pairing ID: ${session.pairingId.slice(0, 8)}...`);
 
@@ -47,33 +61,157 @@ program
   .command("disconnect")
   .description("Kill the current phone session")
   .action(async () => {
-    // Implemented in task 22
-    console.log("disconnect command — not yet implemented");
+    if (!activeSession || !activeSession.connected) {
+      console.log("no active session");
+      return;
+    }
+
+    // Send disconnect over WS
+    if (activeSession.ws.readyState === 1) {
+      try {
+        activeSession.ws.send(
+          JSON.stringify({
+            type: "disconnect",
+            sessionId: activeSession.sessionId,
+            reason: "user_disconnect",
+          })
+        );
+      } catch {
+        // Best effort
+      }
+    }
+
+    activeSession.connected = false;
+    console.log("  ✓ Disconnected from session:", activeSession.sessionId.slice(0, 8) + "...");
   });
 
 program
   .command("devices")
   .description("List all devices ever paired to this machine")
   .action(async () => {
-    // Implemented in task 22
-    console.log("devices command — not yet implemented");
+    const { getCliInstance } = await import("./connect.js");
+
+    const apiBaseUrl = process.env["PHONE_TERMINAL_API_URL"] ?? "";
+    if (!apiBaseUrl) {
+      console.error("ERROR: PHONE_TERMINAL_API_URL not set");
+      process.exit(1);
+    }
+    if (!apiBaseUrl.startsWith("https://")) {
+      console.error("ERROR: PHONE_TERMINAL_API_URL must use https://");
+      process.exit(1);
+    }
+
+    const url = `${apiBaseUrl}/api/devices?cliInstance=${encodeURIComponent(getCliInstance())}`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(`  ✗ Failed to fetch devices (${response.status}): ${text}`);
+        process.exit(1);
+      }
+
+      const data = (await response.json()) as {
+        devices: Array<{
+          deviceId: string;
+          deviceLabel: string;
+          pairedAt: string;
+          revoked: boolean;
+        }>;
+      };
+
+      if (data.devices.length === 0) {
+        console.log("  No paired devices.");
+        return;
+      }
+
+      // Print table header
+      console.log("");
+      console.log(
+        "  " +
+          "Device ID".padEnd(20) +
+          "Label".padEnd(24) +
+          "Paired At".padEnd(26) +
+          "Status"
+      );
+      console.log("  " + "─".repeat(76));
+
+      // Print rows
+      for (const device of data.devices) {
+        const id = device.deviceId.slice(0, 16) + "...";
+        const label = device.deviceLabel.slice(0, 22).padEnd(24);
+        const paired = new Date(device.pairedAt).toLocaleString().padEnd(26);
+        const status = device.revoked ? "REVOKED" : "active";
+
+        console.log(`  ${id.padEnd(20)}${label}${paired}${status}`);
+      }
+      console.log("");
+    } catch (err) {
+      console.error(`  ✗ Network error: ${(err as Error).message}`);
+      process.exit(1);
+    }
   });
 
 program
   .command("revoke")
   .description("Permanently revoke a specific device")
   .argument("<deviceId>", "Device ID to revoke (from 'devices' command)")
-  .action(async (_deviceId: string) => {
-    // Implemented in task 22
-    console.log("revoke command — not yet implemented");
+  .action(async (deviceId: string) => {
+    const { getCliInstance } = await import("./connect.js");
+
+    const apiBaseUrl = process.env["PHONE_TERMINAL_API_URL"] ?? "";
+    if (!apiBaseUrl) {
+      console.error("ERROR: PHONE_TERMINAL_API_URL not set");
+      process.exit(1);
+    }
+    if (!apiBaseUrl.startsWith("https://")) {
+      console.error("ERROR: PHONE_TERMINAL_API_URL must use https://");
+      process.exit(1);
+    }
+
+    const url = `${apiBaseUrl}/api/devices/revoke`;
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deviceId,
+          cliInstance: getCliInstance(),
+        }),
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(`  ✗ Revoke failed (${response.status}): ${text}`);
+        process.exit(1);
+      }
+
+      const result = (await response.json()) as { success: boolean; message?: string };
+      if (result.success) {
+        console.log(`  ✓ Device ${deviceId.slice(0, 8)}... revoked permanently.`);
+      } else {
+        console.log(`  ✗ Revoke failed: ${result.message ?? "unknown error"}`);
+      }
+    } catch (err) {
+      console.error(`  ✗ Network error: ${(err as Error).message}`);
+      process.exit(1);
+    }
   });
 
 program
   .command("status")
   .description("Print current connection state")
   .action(async () => {
-    // Implemented in task 22
-    console.log("status command — not yet implemented");
+    if (!activeSession || !activeSession.connected) {
+      console.log("no active session");
+      return;
+    }
+
+    console.log(`  Session:  ${activeSession.sessionId.slice(0, 8)}...`);
+    console.log(`  Device:   ${activeSession.deviceLabel} (${activeSession.deviceId.slice(0, 8)}...)`);
+    console.log(`  Status:   connected`);
+    console.log(`  Last seq: ${activeSession.lastSeq}`);
   });
 
 program
