@@ -241,6 +241,21 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     refocusInput();
   }, [refocusInput, sendInput]);
 
+  const handleRecoverTerminal = async () => {
+    setInput('');
+    setLivePreview('');
+    setInputMode('chat');
+    setStatus('Recovering');
+    termRef.current?.reset();
+    scheduleResize();
+
+    // Ctrl+C interrupts the active foreground app. Ctrl+U clears any partial
+    // shell line if we are already back at a prompt.
+    await sendInput('\x03', 'Recover');
+    await sendInput('\x15', 'Recover');
+    refocusInput();
+  };
+
   const sendCommand = async (command: string) => {
     await sendInput(`${command}\r`, 'Command sent');
   };
@@ -430,6 +445,13 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
             onClick={() => sendSpecialInput('\x03', 'Ctrl+C')}
           >
             Ctrl+C
+          </button>
+          <button
+            className="quick-action recover-action"
+            type="button"
+            onClick={() => void handleRecoverTerminal()}
+          >
+            Recover
           </button>
           <button
             className="quick-action"

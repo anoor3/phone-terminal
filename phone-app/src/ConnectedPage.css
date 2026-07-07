@@ -281,6 +281,12 @@
   color: #ffbdc7;
 }
 
+.recover-action {
+  border-color: #314b71;
+  background: #101b2d;
+  color: #bdd8ff;
+}
+
 .control-key {
   border: 1px solid #2b3b50;
   border-radius: 0.62rem;
