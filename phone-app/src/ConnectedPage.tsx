@@ -131,7 +131,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
 
     const term = new Terminal({
       cursorBlink: true,
-      disableStdin: true,
+      disableStdin: false,
       convertEol: true,
       fontFamily: '"SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace',
       fontSize: 13,
@@ -157,7 +157,11 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     term.open(terminalRef.current);
     termRef.current = term;
     fitAddonRef.current = fitAddon;
-    term.writeln('\x1b[38;5;81mphone-terminal\x1b[0m session ready');
+    const inputDisposable = term.onData((data) => {
+      void sendEnvelope('input', data).then((sent) => {
+        if (sent) setStatus('Live Keys');
+      });
+    });
     scheduleResize();
 
     const resizeObserver = new ResizeObserver(scheduleResize);
@@ -175,11 +179,12 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
       window.removeEventListener('orientationchange', syncVisualViewport);
       window.visualViewport?.removeEventListener('resize', syncVisualViewport);
       window.visualViewport?.removeEventListener('scroll', syncVisualViewport);
+      inputDisposable.dispose();
       fitAddonRef.current = null;
       termRef.current = null;
       term.dispose();
     };
-  }, [scheduleResize, syncVisualViewport]);
+  }, [scheduleResize, sendEnvelope, syncVisualViewport]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -294,6 +299,13 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     scheduleResize();
   };
 
+  const focusTerminalInput = useCallback(() => {
+    setInputMode('raw');
+    setInput('');
+    setLivePreview('');
+    termRef.current?.focus();
+  }, []);
+
   const handleLiveKeysChange = (nextValue: string) => {
     if (inputMode === 'chat') {
       setInput(nextValue);
@@ -399,7 +411,11 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
         </div>
       </header>
 
-      <main className="terminal-stage">
+      <main
+        className="terminal-stage"
+        onPointerDown={focusTerminalInput}
+        aria-label="Remote terminal"
+      >
         <div ref={terminalRef} className="terminal-canvas" />
       </main>
 
