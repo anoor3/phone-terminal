@@ -135,6 +135,35 @@ export function ClaimPage({ onClaimed, onPaired }: ClaimPageProps) {
         }}>
           Start `phone-terminal connect` on your laptop, then scan the QR code with this phone.
         </p>
+        <div style={{
+          width: 'min(100%, 23rem)',
+          marginTop: '1.4rem',
+          padding: '1rem',
+          border: '1px solid #223044',
+          borderRadius: '0.85rem',
+          background: '#0d131b',
+          textAlign: 'left',
+        }}>
+          <div style={{
+            color: '#f3f8ff',
+            fontSize: '0.92rem',
+            fontWeight: 800,
+            marginBottom: '0.55rem',
+          }}>
+            Want an app-like shortcut?
+          </div>
+          <ol style={{
+            margin: 0,
+            paddingLeft: '1.15rem',
+            color: '#a8b8c8',
+            fontSize: '0.86rem',
+            lineHeight: 1.55,
+          }}>
+            <li>Open this page in Safari.</li>
+            <li>Tap Share.</li>
+            <li>Tap Add to Home Screen.</li>
+          </ol>
+        </div>
       </div>
     );
   }
