@@ -11,6 +11,7 @@ interface ClaimPageProps {
 
 export function ClaimPage({ onClaimed, onPaired }: ClaimPageProps) {
   const [error, setError] = useState<string | null>(null);
+  const [needsPairingLink, setNeedsPairingLink] = useState(false);
   const [status, setStatus] = useState('Connecting...');
 
   useEffect(() => {
@@ -20,7 +21,7 @@ export function ClaimPage({ onClaimed, onPaired }: ClaimPageProps) {
     const pairingToken = window.location.hash.slice(1);
 
     if (!pairingId || !pairingToken) {
-      setError('Invalid pairing link. Missing pairing ID or token.');
+      setNeedsPairingLink(true);
       return;
     }
 
@@ -82,6 +83,61 @@ export function ClaimPage({ onClaimed, onPaired }: ClaimPageProps) {
 
     return () => {};
   }, [onClaimed, onPaired]);
+
+  if (needsPairingLink) {
+    return (
+      <div style={{
+        minHeight: '100dvh',
+        padding: 'max(2rem, env(safe-area-inset-top)) 1.5rem max(2rem, env(safe-area-inset-bottom))',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#070b10',
+        color: '#dbe5ee',
+        textAlign: 'center',
+        fontFamily: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      }}>
+        <div style={{
+          width: '4.5rem',
+          height: '4.5rem',
+          borderRadius: '1.25rem',
+          border: '1px solid #223044',
+          background: '#0d131b',
+          display: 'grid',
+          placeItems: 'center',
+          marginBottom: '1.25rem',
+          boxShadow: '0 22px 60px rgba(0, 0, 0, 0.35)',
+        }}>
+          <span style={{
+            color: '#22c55e',
+            fontFamily: '"SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace',
+            fontSize: '2rem',
+            fontWeight: 800,
+          }}>
+            &gt;_
+          </span>
+        </div>
+        <h1 style={{
+          margin: 0,
+          color: '#f3f8ff',
+          fontSize: '1.45rem',
+          lineHeight: 1.15,
+        }}>
+          Ready to pair
+        </h1>
+        <p style={{
+          maxWidth: '22rem',
+          margin: '0.8rem 0 0',
+          color: '#8fa3b8',
+          fontSize: '0.98rem',
+          lineHeight: 1.45,
+        }}>
+          Start `phone-terminal connect` on your laptop, then scan the QR code with this phone.
+        </p>
+      </div>
+    );
+  }
 
   if (error) {
     return (
