@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import jsQR from 'jsqr';
 import { generateKeypair, exportPublicKeyJWK } from './crypto';
 
 // WSS only — no ws:// code path exists (per §10)
@@ -9,10 +10,36 @@ interface ClaimPageProps {
   onPaired: (ws: WebSocket, sessionId: string) => void;
 }
 
+function getSafePairingTarget(rawValue: string): string | null {
+  try {
+    const url = new URL(rawValue, window.location.origin);
+    const pathParts = url.pathname.split('/');
+    const pIdx = pathParts.indexOf('p');
+    const pairingId = pIdx !== -1 ? pathParts[pIdx + 1] : undefined;
+
+    if (url.origin !== window.location.origin) return null;
+    if (!pairingId || !url.hash.slice(1)) return null;
+    return `${url.pathname}${url.hash}`;
+  } catch {
+    return null;
+  }
+}
+
 export function ClaimPage({ onClaimed, onPaired }: ClaimPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [needsPairingLink, setNeedsPairingLink] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerError, setScannerError] = useState<string | null>(null);
   const [status, setStatus] = useState('Connecting...');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
+  const closeScanner = useCallback(() => {
+    setScannerOpen(false);
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+  }, []);
 
   useEffect(() => {
     const pathParts = window.location.pathname.split('/');
@@ -84,6 +111,85 @@ export function ClaimPage({ onClaimed, onPaired }: ClaimPageProps) {
     return () => {};
   }, [onClaimed, onPaired]);
 
+  useEffect(() => {
+    if (!scannerOpen) return;
+
+    let cancelled = false;
+    let frame = 0;
+
+    const stop = () => {
+      if (frame) cancelAnimationFrame(frame);
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    };
+
+    const scan = () => {
+      if (cancelled) return;
+
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas?.getContext('2d', { willReadFrequently: true });
+
+      if (video && canvas && context && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        const width = video.videoWidth;
+        const height = video.videoHeight;
+
+        if (width > 0 && height > 0) {
+          canvas.width = width;
+          canvas.height = height;
+          context.drawImage(video, 0, 0, width, height);
+
+          const imageData = context.getImageData(0, 0, width, height);
+          const result = jsQR(imageData.data, width, height);
+
+          if (result?.data) {
+            const target = getSafePairingTarget(result.data);
+            if (target) {
+              stop();
+              window.location.assign(target);
+              return;
+            }
+            setScannerError('This QR code is not a phone-terminal pairing link.');
+          }
+        }
+      }
+
+      frame = requestAnimationFrame(scan);
+    };
+
+    const start = async () => {
+      try {
+        setScannerError(null);
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: { ideal: 'environment' } },
+        });
+
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        streamRef.current = stream;
+        const video = videoRef.current;
+        if (!video) return;
+
+        video.srcObject = stream;
+        await video.play();
+        frame = requestAnimationFrame(scan);
+      } catch {
+        setScannerError('Camera access failed. Use the system Camera app to scan the laptop QR code.');
+      }
+    };
+
+    void start();
+
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, [scannerOpen]);
+
   if (needsPairingLink) {
     return (
       <div style={{
@@ -135,9 +241,29 @@ export function ClaimPage({ onClaimed, onPaired }: ClaimPageProps) {
         }}>
           Start `phone-terminal connect` on your laptop, then scan the QR code with this phone.
         </p>
+        <button
+          type="button"
+          onClick={() => setScannerOpen(true)}
+          style={{
+            width: 'min(100%, 23rem)',
+            minHeight: '3rem',
+            marginTop: '1.4rem',
+            border: '1px solid #4091ff',
+            borderRadius: '0.85rem',
+            background: '#10284a',
+            color: '#eef6ff',
+            font: 'inherit',
+            fontSize: '1rem',
+            fontWeight: 850,
+            boxShadow: '0 16px 34px rgba(47, 129, 247, 0.22)',
+            cursor: 'pointer',
+          }}
+        >
+          Scan QR
+        </button>
         <div style={{
           width: 'min(100%, 23rem)',
-          marginTop: '1.4rem',
+          marginTop: '0.9rem',
           padding: '1rem',
           border: '1px solid #223044',
           borderRadius: '0.85rem',
@@ -164,6 +290,89 @@ export function ClaimPage({ onClaimed, onPaired }: ClaimPageProps) {
             <li>Tap Add to Home Screen.</li>
           </ol>
         </div>
+        {scannerOpen && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 20,
+            display: 'flex',
+            flexDirection: 'column',
+            background: '#070b10',
+            color: '#dbe5ee',
+            padding: 'max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom))',
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem',
+              marginBottom: '0.85rem',
+            }}>
+              <div style={{
+                color: '#f3f8ff',
+                fontSize: '1rem',
+                fontWeight: 850,
+              }}>
+                Scan laptop QR
+              </div>
+              <button
+                type="button"
+                onClick={closeScanner}
+                style={{
+                  minHeight: '2.4rem',
+                  border: '1px solid #2b3b50',
+                  borderRadius: '0.7rem',
+                  background: '#101825',
+                  color: '#d8e3ef',
+                  padding: '0 0.85rem',
+                  font: 'inherit',
+                  fontWeight: 800,
+                }}
+              >
+                Close
+              </button>
+            </div>
+            <div style={{
+              position: 'relative',
+              minHeight: 0,
+              flex: '1 1 auto',
+              overflow: 'hidden',
+              border: '1px solid #223044',
+              borderRadius: '1rem',
+              background: '#0d131b',
+            }}>
+              <video
+                ref={videoRef}
+                muted
+                playsInline
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+              />
+              <div style={{
+                position: 'absolute',
+                inset: '18%',
+                border: '2px solid rgba(34, 197, 94, 0.9)',
+                borderRadius: '1rem',
+                boxShadow: '0 0 0 999px rgba(7, 11, 16, 0.42)',
+                pointerEvents: 'none',
+              }} />
+            </div>
+            <canvas ref={canvasRef} style={{ display: 'none' }} />
+            <p style={{
+              minHeight: '2.5rem',
+              margin: '0.85rem 0 0',
+              color: scannerError ? '#ffbdc7' : '#8fa3b8',
+              fontSize: '0.88rem',
+              lineHeight: 1.4,
+              textAlign: 'center',
+            }}>
+              {scannerError ?? 'Point the camera at the QR code shown in your laptop terminal.'}
+            </p>
+          </div>
+        )}
       </div>
     );
   }
