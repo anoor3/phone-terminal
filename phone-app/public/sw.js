@@ -3,9 +3,9 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
-});
-
-self.addEventListener('fetch', () => {
-  // The app stays network-first so relay/session security is never hidden by cache.
+  event.waitUntil(
+    self.registration.unregister().then(() => self.clients.matchAll()).then((clients) => {
+      for (const client of clients) client.navigate(client.url);
+    })
+  );
 });
