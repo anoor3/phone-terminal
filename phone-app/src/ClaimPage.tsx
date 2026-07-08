@@ -248,14 +248,14 @@ export function ClaimPage({ onClaimed, onPaired }: ClaimPageProps) {
             width: 'min(100%, 23rem)',
             minHeight: '3rem',
             marginTop: '1.4rem',
-            border: '1px solid #4091ff',
-            borderRadius: '0.85rem',
-            background: '#10284a',
-            color: '#eef6ff',
+            border: '1px solid #315c3f',
+            borderRadius: '0.75rem',
+            background: '#101811',
+            color: '#e8f5ec',
             font: 'inherit',
             fontSize: '1rem',
             fontWeight: 850,
-            boxShadow: '0 16px 34px rgba(47, 129, 247, 0.22)',
+            boxShadow: '0 14px 34px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.04)',
             cursor: 'pointer',
           }}
         >
@@ -313,7 +313,7 @@ export function ClaimPage({ onClaimed, onPaired }: ClaimPageProps) {
                 fontSize: '1rem',
                 fontWeight: 850,
               }}>
-                Scan laptop QR
+                Scan QR
               </div>
               <button
                 type="button"
@@ -337,9 +337,9 @@ export function ClaimPage({ onClaimed, onPaired }: ClaimPageProps) {
               minHeight: 0,
               flex: '1 1 auto',
               overflow: 'hidden',
-              border: '1px solid #223044',
-              borderRadius: '1rem',
-              background: '#0d131b',
+              border: '1px solid #1f2a38',
+              borderRadius: '0.75rem',
+              background: '#05080c',
             }}>
               <video
                 ref={videoRef}
@@ -353,10 +353,10 @@ export function ClaimPage({ onClaimed, onPaired }: ClaimPageProps) {
               />
               <div style={{
                 position: 'absolute',
-                inset: '18%',
-                border: '2px solid rgba(34, 197, 94, 0.9)',
-                borderRadius: '1rem',
-                boxShadow: '0 0 0 999px rgba(7, 11, 16, 0.42)',
+                inset: '20%',
+                border: '2px solid rgba(245, 248, 252, 0.92)',
+                borderRadius: '0.55rem',
+                boxShadow: '0 0 0 999px rgba(5, 8, 12, 0.48)',
                 pointerEvents: 'none',
               }} />
             </div>
@@ -391,7 +391,7 @@ export function ClaimPage({ onClaimed, onPaired }: ClaimPageProps) {
     <div style={{ padding: '2rem', textAlign: 'center' }}>
       <div style={{
         width: '48px', height: '48px',
-        border: '4px solid #e2e8f0', borderTopColor: '#3182ce',
+        border: '4px solid #223044', borderTopColor: '#f3f8ff',
         borderRadius: '50%', margin: '2rem auto',
         animation: 'spin 1s linear infinite',
       }} />

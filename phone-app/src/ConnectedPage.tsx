@@ -40,6 +40,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
   const lastSizeRef = useRef<TerminalSize | null>(null);
   const resizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const keyboardOpenRef = useRef(false);
+  const disconnectedRef = useRef(false);
   const [input, setInput] = useState('');
   const [livePreview, setLivePreview] = useState('');
   const [status, setStatus] = useState('Connected');
@@ -131,7 +132,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
 
     const term = new Terminal({
       cursorBlink: true,
-      disableStdin: false,
+      disableStdin: true,
       convertEol: true,
       fontFamily: '"SFMono-Regular", "Cascadia Code", "Roboto Mono", Menlo, Consolas, monospace',
       fontSize: 13,
@@ -157,11 +158,6 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     term.open(terminalRef.current);
     termRef.current = term;
     fitAddonRef.current = fitAddon;
-    const inputDisposable = term.onData((data) => {
-      void sendEnvelope('input', data).then((sent) => {
-        if (sent) setStatus('Live Keys');
-      });
-    });
     scheduleResize();
 
     const resizeObserver = new ResizeObserver(scheduleResize);
@@ -179,12 +175,11 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
       window.removeEventListener('orientationchange', syncVisualViewport);
       window.visualViewport?.removeEventListener('resize', syncVisualViewport);
       window.visualViewport?.removeEventListener('scroll', syncVisualViewport);
-      inputDisposable.dispose();
       fitAddonRef.current = null;
       termRef.current = null;
       term.dispose();
     };
-  }, [scheduleResize, sendEnvelope, syncVisualViewport]);
+  }, [scheduleResize, syncVisualViewport]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -197,6 +192,13 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
   }, [scheduleResize]);
 
   useEffect(() => {
+    const disconnectOnce = (reason: string) => {
+      if (disconnectedRef.current) return;
+      disconnectedRef.current = true;
+      void clearKeypair();
+      onDisconnected(reason);
+    };
+
     const handleMessage = (event: MessageEvent) => {
       let msg: Record<string, unknown>;
       try {
@@ -219,8 +221,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
           break;
         case 'disconnect':
         case 'disconnected':
-          void clearKeypair();
-          onDisconnected(typeof msg.reason === 'string' ? msg.reason : 'Session ended by host');
+          disconnectOnce(typeof msg.reason === 'string' ? msg.reason : 'Session ended by host');
           break;
         case 'error':
           if (typeof msg['error'] === 'string') setStatus(msg['error']);
@@ -228,8 +229,29 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
       }
     };
 
+    const handleClose = () => {
+      disconnectOnce('Connection closed');
+    };
+
+    const handlePageResume = () => {
+      if (document.visibilityState === 'visible' && ws.readyState !== WebSocket.OPEN) {
+        disconnectOnce('Connection closed');
+      }
+    };
+
     ws.addEventListener('message', handleMessage);
-    return () => ws.removeEventListener('message', handleMessage);
+    ws.addEventListener('close', handleClose);
+    ws.addEventListener('error', handleClose);
+    document.addEventListener('visibilitychange', handlePageResume);
+    window.addEventListener('pageshow', handlePageResume);
+
+    return () => {
+      ws.removeEventListener('message', handleMessage);
+      ws.removeEventListener('close', handleClose);
+      ws.removeEventListener('error', handleClose);
+      document.removeEventListener('visibilitychange', handlePageResume);
+      window.removeEventListener('pageshow', handlePageResume);
+    };
   }, [ws, sessionId, onDisconnected]);
 
   const sendInput = useCallback(async (payload: string, label = 'Sent') => {
@@ -281,6 +303,7 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
   };
 
   const handleDisconnect = async () => {
+    disconnectedRef.current = true;
     await sendEnvelope('disconnect', '');
     await clearKeypair();
     onDisconnected('Manual disconnect');
@@ -303,8 +326,8 @@ export function ConnectedPage({ ws, sessionId, onDisconnected }: ConnectedPagePr
     setInputMode('raw');
     setInput('');
     setLivePreview('');
-    termRef.current?.focus();
-  }, []);
+    refocusInput();
+  }, [refocusInput]);
 
   const handleLiveKeysChange = (nextValue: string) => {
     if (inputMode === 'chat') {
